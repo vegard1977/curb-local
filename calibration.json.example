@@ -1,0 +1,15 @@
+{
+  "volt_scale": 0.0000848,
+  "watt_scale": 0.001,
+  "pf_scale": 0.000030518,
+  "circuit_current_scales": [
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+  ],
+  "circuit_names": [
+    "Krets 1", "Krets 2", "Krets 3", "Krets 4",  "Krets 5",  "Krets 6",
+    "Krets 7", "Krets 8", "Krets 9", "Krets 10", "Krets 11", "Krets 12",
+    "Krets 13","Krets 14","Krets 15","Krets 16", "Krets 17", "Krets 18"
+  ]
+}

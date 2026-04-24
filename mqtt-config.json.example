@@ -1,0 +1,9 @@
+{
+  "broker_host":  "10.0.0.49",
+  "broker_port":  1883,
+  "username":     "mqtt_user",
+  "password":     "ditt-passord-her",
+  "base_topic":   "curb/power",
+  "ha_prefix":    "homeassistant",
+  "device_name":  "Curb Energy Monitor"
+}
