@@ -337,7 +337,7 @@ async function poll() {
     const d = await r.json();
     const circuits = d.circuits || [];
     const age = d.t ? Date.now()/1000-d.t : 99;
-    setDot(age<10?'live':age<60?'stale':'err');
+    setDot(age<15?'live':age<120?'stale':'err');
 
     let totW=0, totA=0, volt=0, active=0;
     const gw=[0,0,0], gMax=[0,0,0];

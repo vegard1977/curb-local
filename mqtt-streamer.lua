@@ -154,7 +154,11 @@ local SENSOR_TYPES = {
   { suffix = '_v',  name_suffix = ' Spenning',     unit = 'V',   device_class = 'voltage',      value_template = '{{ value_json.voltage | round(1) }}' },
 }
 
-local function publish_discovery()
+-- Discovery-koe: fylles opp og sendes én melding per main-loop-iterasjon
+-- slik at streameren ikke blokkerer i 60+ sekunder ved oppstart/reconnect.
+local discovery_queue = {}
+
+local function queue_discovery()
   local device = {
     identifiers  = { DEVICE_ID },
     name         = DEVICE_NAME,
@@ -164,7 +168,6 @@ local function publish_discovery()
 
   for i = 1, 18 do
     local circuit_name = 'Krets ' .. i
-    -- Les ev. navn fra kalibrefil
     if cal.circuit_names and cal.circuit_names[i] then
       circuit_name = cal.circuit_names[i]
     end
@@ -185,15 +188,14 @@ local function publish_discovery()
       if st.unit then
         payload['unit_of_measurement'] = st.unit
       end
-      publish_retain(topic, json.encode(payload))
+      discovery_queue[#discovery_queue + 1] = { topic = topic, payload = json.encode(payload) }
     end
   end
-
-  logger:info('HA auto-discovery sendt (%s)', DEVICE_ID)
+  logger:info('Discovery koe fylt (%d meldinger)', #discovery_queue)
 end
 
--- Send discovery etter at alle funksjoner er definert
-if connected then publish_discovery() end
+-- Koe discovery ved oppstart
+if connected then queue_discovery() end
 
 -- ── IPC-koe ───────────────────────────────────────────────────────────────────
 local qid = queue.init(queue.LEGACY_KEY)
@@ -249,6 +251,15 @@ while true do
     mosq.mosquitto_loop(client, 0, 1)
     write_latest()
 
+    -- Send én discovery-melding per iterasjon (ikke-blokkerende)
+    if #discovery_queue > 0 then
+      local msg = table.remove(discovery_queue, 1)
+      publish_retain(msg.topic, msg.payload)
+      if #discovery_queue == 0 then
+        logger:info('HA auto-discovery fullfort (%s)', DEVICE_ID)
+      end
+    end
+
     sample_count = sample_count + 1
     if sample_count % 60 == 0 then
       logger:info('%d samples publisert, %d kretser', sample_count, circuit)
@@ -258,11 +269,16 @@ while true do
     -- Ingen sample -- hold MQTT-tilkoblingen i live
     if connected then
       mosq.mosquitto_loop(client, 100, 1)
+      -- Send discovery-meldinger sakte også her
+      if #discovery_queue > 0 then
+        local msg = table.remove(discovery_queue, 1)
+        publish_retain(msg.topic, msg.payload)
+      end
     else
       logger:warn('Ikke koblet, prover reconnect...')
       socket.sleep(RECONNECT_SECS)
       connected = mqtt_connect()
-      if connected then publish_discovery() end
+      if connected then queue_discovery() end
     end
   end
 end
