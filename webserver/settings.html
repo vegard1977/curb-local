@@ -102,7 +102,7 @@
       </div>
       <div class="field">
         <label data-i18n="lbl_pass">Passord</label>
-        <input id="password" type="password" placeholder="La staa for aa beholde">
+        <input id="password" type="password" data-i18n-placeholder="placeholder_pass">
         <p class="hint" data-i18n="hint_pass">Tom = behold eksisterende passord</p>
       </div>
     </div>
@@ -157,6 +157,7 @@ const T = {
     mqtt_title:'MQTT-broker', dev_title:'Enhet',
     lbl_host:'Broker-adresse', lbl_port:'Port', lbl_user:'Brukernavn',
     lbl_pass:'Passord', hint_pass:'Tom = behold eksisterende passord',
+    placeholder_pass:'La stå for å beholde',
     lbl_topic:'Base topic', lbl_devname:'Enhetsnavn (vises i Home Assistant)',
     lbl_haprefix:'Home Assistant discovery-prefiks',
     btn_save:'Lagre og restart',
@@ -167,6 +168,7 @@ const T = {
     mqtt_title:'MQTT broker', dev_title:'Device',
     lbl_host:'Broker address', lbl_port:'Port', lbl_user:'Username',
     lbl_pass:'Password', hint_pass:'Leave empty to keep existing password',
+    placeholder_pass:'Leave blank to keep existing',
     lbl_topic:'Base topic', lbl_devname:'Device name (shown in Home Assistant)',
     lbl_haprefix:'Home Assistant discovery prefix',
     btn_save:'Save and restart',
@@ -179,6 +181,7 @@ function applyLang(l) {
   lang = l; localStorage.setItem('curb_lang', l);
   const tr=T[l]||T.no;
   document.querySelectorAll('[data-i18n]').forEach(el=>{ const k=el.dataset.i18n; if(tr[k]!=null) el.textContent=tr[k]; });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{ const k=el.dataset.i18nPlaceholder; if(tr[k]!=null) el.placeholder=tr[k]; });
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.lang===l));
 }
 
@@ -199,7 +202,7 @@ async function load() {
     document.getElementById('base_topic').value  = cfg.base_topic  || 'curb/power';
     document.getElementById('device_name').value = cfg.device_name || '';
     document.getElementById('ha_prefix').value   = cfg.ha_prefix   || 'homeassistant';
-  } catch(e) { toast('mqtt-toast',false,'Klarte ikke laste konfig: '+e.message); }
+  } catch(e) { toast('mqtt-toast',false,'Could not load config: '+e.message); }
 }
 
 async function saveMqtt() {

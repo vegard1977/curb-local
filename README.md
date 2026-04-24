@@ -172,13 +172,13 @@ Live view of uptime, memory usage, CPU load, data age and process status (sample
 ### Restore manually
 
 ```bash
-ssh root@10.0.0.107
+ssh root@<curb-ip>
 
 # List backups
 ls /data/backup-*/
 
 # Restore a file
-cp /data/backup-20241201-143022/hm.conf /etc/hm.conf
+cp /data/backup-<date>/hm.conf /etc/hm.conf
 
 # Stop new processes and let hm clean up
 kill $(ps | grep mqtt-streamer | grep lua | sed 's/^ *//' | cut -d' ' -f1) 2>/dev/null
@@ -216,6 +216,12 @@ All calibration is done in software via `/data/calibration.json`:
 - `watt_scale` — power: calibrate against a known load
 - `pf_scale` — 1/32768 (Q15 format, constant)
 - `circuit_current_scales[n]` — individual CT calibration per circuit
+
+## Credits
+
+This project would not have been possible without the reverse engineering work done by
+[codearranger/curbed](https://github.com/codearranger/curbed/tree/main), which documented
+the Curb internal IPC queue protocol, sampler data format, and Lua runtime environment.
 
 ## License
 
