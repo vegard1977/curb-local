@@ -156,9 +156,6 @@ for page in energy.html settings.html calibration.html sysinfo.html; do
     remote "cp /data/sd/www/$page /tmp/www/$page && chmod 644 /tmp/www/$page"
   fi
 done
-[ -f "$SCRIPT_DIR/webserver/firkant.png" ] && \
-  upload "$SCRIPT_DIR/webserver/firkant.png" "/data/sd/www/firkant.png" && \
-  remote "cp /data/sd/www/firkant.png /tmp/www/firkant.png 2>/dev/null || true"
 ok "Web pages deployed"
 
 # ── MQTT config ───────────────────────────────────────────────────────────────

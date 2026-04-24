@@ -236,9 +236,9 @@ async function load() {
     const dataEl=document.getElementById('val-data');
     if(age!=null){
       dataEl.innerHTML=Math.round(age)+'<span class="stat-unit">s</span>';
-      dataEl.className='stat-val '+(age<10?'ok':age<60?'warn':'err');
-      document.getElementById('sub-data').textContent=age<10?tr.data_ok:tr.data_stale;
-      document.getElementById('card-data').className='stat-card '+(age<10?'ok':age<60?'warn':'err');
+      dataEl.className='stat-val '+(age<15?'ok':age<120?'warn':'err');
+      document.getElementById('sub-data').textContent=age<15?tr.data_ok:tr.data_stale;
+      document.getElementById('card-data').className='stat-card '+(age<15?'ok':age<120?'warn':'err');
     }
 
     // Memory
