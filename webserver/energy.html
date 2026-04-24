@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Curb Energy Monitor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #c9d1d9; --muted: #484f58; --accent: #388bfd;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922;
+      --g1: #388bfd; --g2: #3fb950; --g3: #d29922;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Nav ─────────────────────────────────────────────────────────────── */
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; }
+    .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
+    .nav-brand span { color: var(--accent); }
+    nav a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    nav a:hover { color: var(--text); }
+    nav a.active { color: #fff; border-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    #dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background 0.3s; }
+    #dot.live  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    #dot.stale { background: var(--yellow); }
+    #dot.err   { background: var(--red); }
+    #dot-text { font-size: 0.72rem; color: var(--muted); }
+    .lang-toggle { display: flex; gap: 3px; }
+    .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
+    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    main { max-width: 1100px; margin: 0 auto; padding: 20px 16px; width: 100%; flex: 1; }
+
+    /* ── Summary strip ───────────────────────────────────────────────────── */
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    @media (max-width: 600px) { .summary { grid-template-columns: repeat(2, 1fr); } }
+    .scard { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+    .scard.hi { border-color: rgba(56,139,253,0.35); background: linear-gradient(135deg, rgba(56,139,253,0.14) 0%, rgba(56,139,253,0.04) 100%); }
+    .scard-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .scard-val { font-size: 1.5rem; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .scard.hi .scard-val { color: var(--accent); }
+    .scard-unit { font-size: 0.8rem; color: var(--muted); margin-left: 2px; font-weight: 400; }
+    .scard-sub { font-size: 0.70rem; color: var(--muted); margin-top: 3px; }
+
+    /* ── 4-card group grid ───────────────────────────────────────────────── */
+    .group-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 680px) { .group-grid { grid-template-columns: 1fr; } }
+
+    .group-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+    .group-hdr { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .g1-hdr { background: linear-gradient(90deg, rgba(56,139,253,.22) 0%, rgba(56,139,253,.05) 100%); border-bottom-color: rgba(56,139,253,.28); }
+    .g2-hdr { background: linear-gradient(90deg, rgba(63,185,80,.22)  0%, rgba(63,185,80,.05)  100%); border-bottom-color: rgba(63,185,80,.28); }
+    .g3-hdr { background: linear-gradient(90deg, rgba(210,153,34,.22) 0%, rgba(210,153,34,.05) 100%); border-bottom-color: rgba(210,153,34,.28); }
+    .pie-hdr{ background: linear-gradient(90deg, rgba(188,140,255,.18) 0%,rgba(188,140,255,.04) 100%); border-bottom-color: rgba(188,140,255,.22); }
+    .group-name { font-size: 0.78rem; font-weight: 600; color: #e6edf3; }
+    .group-wtot { font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .g1-hdr .group-wtot { color: var(--g1); }
+    .g2-hdr .group-wtot { color: var(--g2); }
+    .g3-hdr .group-wtot { color: var(--g3); }
+    .pie-hdr .group-wtot { color: #bc8cff; }
+
+    /* ── Circuit rows ────────────────────────────────────────────────────── */
+    .circ-list { flex: 1; padding: 4px 0; }
+    .circ-row { display: grid; grid-template-columns: 1fr minmax(40px,2.2fr) 54px 36px; gap: 6px; align-items: center; padding: 5px 14px; }
+    .circ-row:hover { background: rgba(255,255,255,.025); }
+    .circ-name { font-size: 0.76rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .circ-name.off { color: var(--muted); }
+    .cbar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .cbar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+    .fill-g1 { background: var(--g1); }
+    .fill-g2 { background: var(--g2); }
+    .fill-g3 { background: var(--g3); }
+    .circ-w { font-size: 0.76rem; font-variant-numeric: tabular-nums; color: var(--text); text-align: right; white-space: nowrap; }
+    .circ-a { font-size: 0.70rem; font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; white-space: nowrap; }
+    .circ-row.off .circ-w, .circ-row.off .circ-a { color: var(--muted); }
+
+    /* ── Pie card ────────────────────────────────────────────────────────── */
+    .pie-body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 16px; flex: 1; gap: 0; }
+    canvas#pie { display: block; }
+    .pie-legend { width: 100%; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .leg-row { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; }
+    .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .leg-name { flex: 1; color: var(--muted); }
+    .leg-val { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500; }
+    .leg-pct { color: var(--muted); width: 32px; text-align: right; font-size: 0.70rem; }
+
+    /* ── Footer ──────────────────────────────────────────────────────────── */
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 1100px; margin: 0 auto; width: 100%; }
+    .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
+    .coffee-btn:hover { opacity: 0.85; }
+    .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
+    .kofi-btn:hover { opacity: 0.85; }
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
+  <a href="energy.html" class="active" data-i18n="nav_dash">Dashboard</a>
+  <a href="calibration.html" data-i18n="nav_cal">Kalibrering</a>
+  <a href="settings.html" data-i18n="nav_set">Innstillinger</a>
+  <a href="sysinfo.html" data-i18n="nav_sys">System</a>
+  <div class="nav-right">
+    <div id="dot"></div>
+    <span id="dot-text"></span>
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="summary">
+    <div class="scard hi">
+      <div class="scard-label" data-i18n="s_power">Total effekt</div>
+      <div class="scard-val"><span id="tot-w">—</span><span class="scard-unit" id="tot-unit">W</span></div>
+      <div class="scard-sub" id="tot-sub"></div>
+    </div>
+    <div class="scard">
+      <div class="scard-label" data-i18n="s_current">Strøm</div>
+      <div class="scard-val"><span id="tot-a">—</span><span class="scard-unit">A</span></div>
+    </div>
+    <div class="scard">
+      <div class="scard-label" data-i18n="s_voltage">Spenning</div>
+      <div class="scard-val"><span id="volt">—</span><span class="scard-unit">V</span></div>
+    </div>
+    <div class="scard">
+      <div class="scard-label" data-i18n="s_active">Aktive kretser</div>
+      <div class="scard-val" id="active">—</div>
+      <div class="scard-sub" id="active-sub"></div>
+    </div>
+  </div>
+
+  <div class="group-grid">
+
+    <div class="group-card">
+      <div class="group-hdr g1-hdr">
+        <span class="group-name" data-i18n="g1_name">Gruppe 1 &mdash; CT 1&ndash;6</span>
+        <span class="group-wtot" id="g1-tot">— W</span>
+      </div>
+      <div class="circ-list" id="g1-list"></div>
+    </div>
+
+    <div class="group-card">
+      <div class="group-hdr g2-hdr">
+        <span class="group-name" data-i18n="g2_name">Gruppe 2 &mdash; CT 7&ndash;12</span>
+        <span class="group-wtot" id="g2-tot">— W</span>
+      </div>
+      <div class="circ-list" id="g2-list"></div>
+    </div>
+
+    <div class="group-card">
+      <div class="group-hdr g3-hdr">
+        <span class="group-name" data-i18n="g3_name">Gruppe 3 &mdash; CT 13&ndash;18</span>
+        <span class="group-wtot" id="g3-tot">— W</span>
+      </div>
+      <div class="circ-list" id="g3-list"></div>
+    </div>
+
+    <div class="group-card">
+      <div class="group-hdr pie-hdr">
+        <span class="group-name" data-i18n="pie_title">Live fordeling</span>
+        <span class="group-wtot" id="pie-tot" style="color:#bc8cff">— W</span>
+      </div>
+      <div class="pie-body">
+        <canvas id="pie" width="170" height="170"></canvas>
+        <div class="pie-legend" id="pie-legend"></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <span data-i18n="credit">Utviklet av Vegard Myrvang</span>
+  <div class="support-btns">
+    <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+      ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+    </a>
+    <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+      <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+    </a>
+  </div>
+</footer>
+
+<script>
+const API = 'http://' + location.hostname + ':8080';
+const NUM = 18;
+const GROUPS = [
+  { start:0,  end:5,  fillCls:'fill-g1', totId:'g1-tot', listId:'g1-list', color:'#388bfd' },
+  { start:6,  end:11, fillCls:'fill-g2', totId:'g2-tot', listId:'g2-list', color:'#3fb950' },
+  { start:12, end:17, fillCls:'fill-g3', totId:'g3-tot', listId:'g3-list', color:'#d29922' },
+];
+const PIE_COLORS = ['#388bfd','#3fb950','#d29922'];
+
+let names = Array.from({length:NUM}, (_,i)=>'Krets '+(i+1));
+let lastActive = 0;
+
+// ── Language ──────────────────────────────────────────────────────────────────
+const T = {
+  no: {
+    nav_dash:'Dashboard', nav_cal:'Kalibrering', nav_set:'Innstillinger', nav_sys:'System',
+    s_power:'Total effekt', s_current:'Strøm', s_voltage:'Spenning', s_active:'Aktive kretser',
+    g1_name:'Gruppe 1 — CT 1–6', g2_name:'Gruppe 2 — CT 7–12', g3_name:'Gruppe 3 — CT 13–18',
+    pie_title:'Live fordeling',
+    st_live:'Live', st_stale:'Forsinket', st_err:'Ingen data',
+    of18:' av 18 kretser',
+    credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
+  },
+  en: {
+    nav_dash:'Dashboard', nav_cal:'Calibration', nav_set:'Settings', nav_sys:'System',
+    s_power:'Total power', s_current:'Current', s_voltage:'Voltage', s_active:'Active circuits',
+    g1_name:'Group 1 — CT 1–6', g2_name:'Group 2 — CT 7–12', g3_name:'Group 3 — CT 13–18',
+    pie_title:'Live distribution',
+    st_live:'Live', st_stale:'Delayed', st_err:'No data',
+    of18:' of 18 circuits',
+    credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
+  },
+};
+let lang = localStorage.getItem('curb_lang') || 'no';
+
+function applyLang(l) {
+  lang = l;
+  localStorage.setItem('curb_lang', l);
+  const tr = T[l] || T.no;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (tr[k] != null) el.textContent = tr[k];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+  document.getElementById('active-sub').textContent = lastActive + tr.of18;
+}
+
+// ── Build circuit rows ────────────────────────────────────────────────────────
+GROUPS.forEach(g => {
+  const list = document.getElementById(g.listId);
+  for (let i = g.start; i <= g.end; i++) {
+    const row = document.createElement('div');
+    row.id = 'row'+i;
+    row.className = 'circ-row off';
+    row.innerHTML =
+      '<span class="circ-name off" id="cn'+i+'">'+names[i]+'</span>'+
+      '<div class="cbar"><div class="cbar-fill '+g.fillCls+'" id="bar'+i+'" style="width:0%"></div></div>'+
+      '<span class="circ-w" id="cw'+i+'">—</span>'+
+      '<span class="circ-a" id="ca'+i+'">—</span>';
+    list.appendChild(row);
+  }
+});
+
+// ── Status dot ────────────────────────────────────────────────────────────────
+function setDot(state) {
+  const dot = document.getElementById('dot');
+  const tr  = T[lang] || T.no;
+  dot.className = state;
+  document.getElementById('dot-text').textContent =
+    state==='live' ? tr.st_live : state==='stale' ? tr.st_stale : tr.st_err;
+}
+
+// ── Donut pie chart ───────────────────────────────────────────────────────────
+function drawPie(gw, total) {
+  const c = document.getElementById('pie');
+  const ctx = c.getContext('2d');
+  const W=c.width, H=c.height, cx=W/2, cy=H/2;
+  const ro=cx-6, ri=ro*0.55;
+  ctx.clearRect(0,0,W,H);
+
+  if (total < 1) {
+    ctx.beginPath(); ctx.arc(cx,cy,ro,0,Math.PI*2);
+    ctx.fillStyle='#21262d'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
+    ctx.fillStyle='#161b22'; ctx.fill();
+    ctx.fillStyle='#484f58'; ctx.font='13px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('—', cx, cy);
+    return;
+  }
+
+  const gap=0.03;
+  let angle=-Math.PI/2;
+  gw.forEach((w,i)=>{
+    if(w<=0) return;
+    const sl=w/total*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,ro,angle+gap,angle+sl-gap);
+    ctx.closePath(); ctx.fillStyle=PIE_COLORS[i]; ctx.fill();
+    angle+=sl;
+  });
+
+  ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
+  ctx.fillStyle='#161b22'; ctx.fill();
+
+  ctx.fillStyle='#e6edf3';
+  ctx.font='bold 13px -apple-system,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(total>=1000?(total/1000).toFixed(1)+' kW':Math.round(total)+' W', cx, cy);
+}
+
+function updateLegend(gw, total) {
+  const tr=T[lang]||T.no;
+  const gnames=[tr.g1_name, tr.g2_name, tr.g3_name];
+  const labels=['CT 1–6','CT 7–12','CT 13–18'];
+  document.getElementById('pie-legend').innerHTML = gw.map((w,i)=>{
+    const pct = total>0 ? Math.round(w/total*100) : 0;
+    return '<div class="leg-row">'+
+      '<div class="leg-dot" style="background:'+PIE_COLORS[i]+'"></div>'+
+      '<span class="leg-name">'+labels[i]+'</span>'+
+      '<span class="leg-val">'+Math.round(w)+' W</span>'+
+      '<span class="leg-pct">'+pct+'%</span>'+
+    '</div>';
+  }).join('');
+}
+
+// ── Load circuit names ────────────────────────────────────────────────────────
+async function loadNames() {
+  try {
+    const r = await fetch(API+'/api/calibration');
+    if(!r.ok) return;
+    const cal = await r.json();
+    const n = cal.circuit_names || [];
+    for(let i=0;i<NUM;i++) {
+      if(n[i]) { names[i]=n[i]; const el=document.getElementById('cn'+i); if(el) el.textContent=n[i]; }
+    }
+  } catch(_) {}
+}
+
+// ── Poll ──────────────────────────────────────────────────────────────────────
+async function poll() {
+  try {
+    const r = await fetch(API+'/api/data');
+    if(!r.ok) throw 0;
+    const d = await r.json();
+    const circuits = d.circuits || [];
+    const age = d.t ? Date.now()/1000-d.t : 99;
+    setDot(age<10?'live':age<60?'stale':'err');
+
+    let totW=0, totA=0, volt=0, active=0;
+    const gw=[0,0,0], gMax=[0,0,0];
+
+    circuits.forEach((c,i)=>{ if(!c||i>=NUM) return; const gi=i<6?0:i<12?1:2; if((c.power||0)>gMax[gi]) gMax[gi]=c.power||0; });
+
+    circuits.forEach((c,i)=>{
+      if(!c||i>=NUM) return;
+      const w=c.power||0, a=c.current||0, v=c.voltage||0;
+      const gi=i<6?0:i<12?1:2;
+      totW+=w; totA+=a; if(v>0) volt=v; if(w>1) active++;
+      gw[gi]+=w;
+
+      const on=w>1;
+      document.getElementById('row'+i).className='circ-row'+(on?'':' off');
+      document.getElementById('cn'+i).className='circ-name'+(on?'':' off');
+      document.getElementById('bar'+i).style.width=(gMax[gi]>0?w/gMax[gi]*100:0).toFixed(1)+'%';
+      document.getElementById('cw'+i).textContent=w>=1000?(w/1000).toFixed(2)+' kW':Math.round(w)+' W';
+      document.getElementById('ca'+i).textContent=a.toFixed(1)+' A';
+    });
+
+    const kw=totW>=1000;
+    document.getElementById('tot-w').textContent=kw?(totW/1000).toFixed(2):Math.round(totW);
+    document.getElementById('tot-unit').textContent=kw?'kW':'W';
+    document.getElementById('tot-sub').textContent=kw?Math.round(totW)+' W':'';
+    document.getElementById('tot-a').textContent=totA.toFixed(1);
+    document.getElementById('volt').textContent=volt>0?volt.toFixed(0):'—';
+    lastActive=active;
+    document.getElementById('active').textContent=active;
+    document.getElementById('active-sub').textContent=active+(T[lang]||T.no).of18;
+
+    GROUPS.forEach((g,i)=>document.getElementById(g.totId).textContent=Math.round(gw[i])+' W');
+    document.getElementById('pie-tot').textContent=Math.round(totW)+' W';
+
+    drawPie(gw,totW);
+    updateLegend(gw,totW);
+  } catch(_) { setDot('err'); }
+}
+
+applyLang(lang);
+loadNames();
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

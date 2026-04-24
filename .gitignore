@@ -1,0 +1,76 @@
+# Sensitive config -- never commit
+mqtt-config.json
+
+# Install logs
+install-*.log
+
+# Development/research files -- not part of the published project
+*.md.bak
+design.md
+dns.md
+findings.md
+kalibrering.md
+curb-context.md
+curb_at_finn.txt
+hm.conf
+config.yaml
+setup_v2.sh
+curb-to-mqtt-extended.py
+
+# Old/raw files
+*.log
+*.pdf
+reddit.pdf
+CURB-installation-guide-v.1.0.pdf
+home-assistant_mqtt_*.log
+Curb\ Status.html
+updated.jpg
+updated2.jpg
+profil.png
+curb.jpg
+1.png
+2.png
+3.png
+4.png
+5.png
+6.png
+7.png
+8.png
+9.png
+10.png
+11.png
+12.png
+13.png
+14.png
+15.png
+16.png
+17.png
+18.png
+19.png
+bilder/
+
+# Embedded repos -- separate projects
+Curb-to-Mqtt/
+amsreader-firmware/
+curbed/
+
+# Old webserver dev files
+webserver/design.md
+webserver/github.md
+webserver/webserver.md
+webserver/index.html
+webserver/lighttpd-config/
+webserver/mqtt-test.lua
+
+# Claude internal
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/

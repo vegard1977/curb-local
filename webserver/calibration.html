@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kalibrering — Curb Energy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #c9d1d9; --muted: #484f58; --accent: #388bfd;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922;
+      --g1: #388bfd; --g2: #3fb950; --g3: #d29922;
+      --input-bg: #0d1117;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Nav ─────────────────────────────────────────────────────────────── */
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; }
+    .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
+    .nav-brand span { color: var(--accent); }
+    nav a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    nav a:hover { color: var(--text); }
+    nav a.active { color: #fff; border-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .lang-toggle { display: flex; gap: 3px; }
+    .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
+    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    main { max-width: 1200px; margin: 0 auto; padding: 20px 16px; width: 100%; flex: 1; }
+
+    /* ── 2x2 card grid ───────────────────────────────────────────────────── */
+    .cal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 760px) { .cal-grid { grid-template-columns: 1fr; } }
+
+    /* ── Card ────────────────────────────────────────────────────────────── */
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+    .section-hdr { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+    .section-hdr.global { background: linear-gradient(90deg, rgba(56,139,253,.18) 0%, rgba(56,139,253,.04) 100%); border-bottom-color: rgba(56,139,253,.25); }
+    .g1-hdr { background: linear-gradient(90deg, rgba(56,139,253,.18) 0%, rgba(56,139,253,.04) 100%); border-bottom-color: rgba(56,139,253,.25); }
+    .g2-hdr { background: linear-gradient(90deg, rgba(63,185,80,.18)  0%, rgba(63,185,80,.04)  100%); border-bottom-color: rgba(63,185,80,.25); }
+    .g3-hdr { background: linear-gradient(90deg, rgba(210,153,34,.18) 0%, rgba(210,153,34,.04) 100%); border-bottom-color: rgba(210,153,34,.25); }
+    .hdr-title { font-size: 0.80rem; font-weight: 600; color: #e6edf3; }
+    .global .hdr-title { color: var(--accent); }
+    .g1-hdr .hdr-title { color: var(--g1); }
+    .g2-hdr .hdr-title { color: var(--g2); }
+    .g3-hdr .hdr-title { color: var(--g3); }
+    .hdr-sub { font-size: 0.70rem; color: var(--muted); }
+
+    /* ── Global card body ────────────────────────────────────────────────── */
+    .global-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+    .field label { display: block; font-size: 0.70rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+    .hint { font-size: 0.70rem; color: var(--muted); margin-top: 3px; }
+    input[type="text"], input[type="number"] {
+      width: 100%; background: var(--input-bg); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; padding: 7px 10px;
+      font-size: 0.83rem; outline: none; transition: border-color .15s;
+      font-variant-numeric: tabular-nums;
+    }
+    input:focus { border-color: var(--accent); }
+    .divider { border: none; border-top: 1px solid var(--border); }
+    .global-ref-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+    .global-ref-row .field { flex: 1; min-width: 90px; }
+    .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    /* ── Circuit table inside group cards ────────────────────────────────── */
+    .table-wrap { overflow-x: auto; flex: 1; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    thead th {
+      padding: 6px 7px; text-align: right; font-size: 0.65rem; font-weight: 500;
+      color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;
+      background: var(--bg); border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    thead th:first-child, thead th:nth-child(2) { text-align: left; }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,.02); }
+    td { padding: 5px 7px; vertical-align: middle; text-align: right; }
+    td:first-child { text-align: left; color: var(--muted); font-size: 0.70rem; width: 20px; }
+    td:nth-child(2) { text-align: left; }
+    td input[type="text"]   { width: 108px; padding: 4px 6px; font-size: 0.76rem; }
+    td input[type="number"] { width: 62px;  padding: 4px 6px; font-size: 0.76rem; text-align: right; }
+    td input.scale-inp { width: 102px; }
+
+    .live-val { font-variant-numeric: tabular-nums; font-size: 0.78rem; }
+    .live-val.zero { color: var(--muted); }
+
+    .tbtn { padding: 3px 6px; font-size: 0.68rem; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); background: #21262d; color: var(--text); white-space: nowrap; transition: border-color .15s, color .15s; }
+    .tbtn:hover { border-color: var(--accent); color: var(--accent); }
+    .tbtn.zero-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+    .tbtn.save-btn { background: none; }
+    .tbtn.save-btn:hover { border-color: var(--green); color: var(--green); }
+    .save-ok { font-size: 0.68rem; color: var(--green); margin-left: 2px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    .save-ok.show { opacity: 1; }
+
+    /* ── Section footer ──────────────────────────────────────────────────── */
+    .section-footer { padding: 11px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* ── Global save bar ─────────────────────────────────────────────────── */
+    .save-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    /* ── Buttons ─────────────────────────────────────────────────────────── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 0.82rem; font-weight: 500; cursor: pointer; border: none; transition: opacity .15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-warn { background: rgba(210,153,34,.12); color: var(--yellow); border: 1px solid rgba(210,153,34,.4) !important; }
+    .btn-warn:hover { opacity: 1 !important; background: rgba(210,153,34,.22); }
+    .toast { display: none; padding: 6px 12px; border-radius: 6px; font-size: 0.80rem; font-weight: 500; }
+    .toast.ok  { display: inline-block; background: #0d2d1a; color: var(--green); border: 1px solid var(--green); }
+    .toast.err { display: inline-block; background: #2d0d0d; color: var(--red);   border: 1px solid var(--red); }
+
+    /* ── Footer ──────────────────────────────────────────────────────────── */
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 1200px; margin: 0 auto; width: 100%; }
+    .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
+    .coffee-btn:hover { opacity: 0.85; }
+    .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
+    .kofi-btn:hover { opacity: 0.85; }
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
+  <a href="energy.html" data-i18n="nav_dash">Dashboard</a>
+  <a href="calibration.html" class="active" data-i18n="nav_cal">Kalibrering</a>
+  <a href="settings.html" data-i18n="nav_set">Innstillinger</a>
+  <a href="sysinfo.html" data-i18n="nav_sys">System</a>
+  <div class="nav-right">
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+<div class="cal-grid">
+
+  <!-- ── Kort 1: Globale skaleringsfaktorer ─────────────────────────────── -->
+  <div class="section">
+    <div class="section-hdr global">
+      <span class="hdr-title" data-i18n="global_title">Globale skaleringsfaktorer</span>
+    </div>
+    <div class="global-body">
+      <div class="field">
+        <label>VOLT_SCALE</label>
+        <input type="number" id="volt_scale" step="0.0000001">
+        <p class="hint" data-i18n="hint_volt">Eks: 233 / 2749049 = 0.0000848</p>
+      </div>
+      <div class="field">
+        <label>WATT_SCALE</label>
+        <input type="number" id="watt_scale" step="0.0001">
+        <p class="hint" data-i18n="hint_watt">Kalibreres mot kjent last</p>
+      </div>
+      <div class="field">
+        <label>PF_SCALE</label>
+        <input type="number" id="pf_scale" step="0.000000001">
+        <p class="hint">ADE7816 Q15: 1/32768 = 0.000030518</p>
+      </div>
+
+      <hr class="divider">
+
+      <div>
+        <label style="display:block;font-size:0.70rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px" data-i18n="global_ref_label">Global referanse — alle CT-er samtidig</label>
+        <div class="global-ref-row">
+          <div class="field">
+            <input type="number" id="global-ref" step="0.01" min="0" placeholder="A">
+            <p class="hint" data-i18n="hint_global_ref">F.eks. 3.34 A fra varmeovn gjennom alle</p>
+          </div>
+        </div>
+        <div class="btn-group" style="margin-top:8px">
+          <button class="btn btn-warn" onclick="fillAllRef()" data-i18n="btn_fill_all">Fyll alle ref</button>
+          <button class="btn btn-warn" onclick="calcAllScale()" data-i18n="btn_calc_all">Beregn alle</button>
+        </div>
+        <div class="btn-group" style="margin-top:6px">
+          <button class="btn btn-warn" onclick="setAllZero()" data-i18n="btn_zero_all">0 A — nullstill alle</button>
+        </div>
+      </div>
+    </div>
+    <div class="section-footer">
+      <button class="btn btn-primary" onclick="saveAll()" data-i18n="btn_save_all">Lagre alle og restart</button>
+      <span class="toast" id="global-toast"></span>
+    </div>
+  </div>
+
+  <!-- ── Kort 2: Gruppe 1 CT 1-6 ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-hdr g1-hdr">
+      <span class="hdr-title" data-i18n="g1_title">Gruppe 1</span>
+      <span class="hdr-sub">CT 1–6</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th data-i18n="th_name">Navn</th><th data-i18n="th_live">Live A</th>
+          <th data-i18n="th_ref">Ref A</th><th></th>
+          <th data-i18n="th_scale">Skala</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-g1"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Kort 3: Gruppe 2 CT 7-12 ──────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-hdr g2-hdr">
+      <span class="hdr-title" data-i18n="g2_title">Gruppe 2</span>
+      <span class="hdr-sub">CT 7–12</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th data-i18n="th_name">Navn</th><th data-i18n="th_live">Live A</th>
+          <th data-i18n="th_ref">Ref A</th><th></th>
+          <th data-i18n="th_scale">Skala</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-g2"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Kort 4: Gruppe 3 CT 13-18 ─────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-hdr g3-hdr">
+      <span class="hdr-title" data-i18n="g3_title">Gruppe 3</span>
+      <span class="hdr-sub">CT 13–18</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th data-i18n="th_name">Navn</th><th data-i18n="th_live">Live A</th>
+          <th data-i18n="th_ref">Ref A</th><th></th>
+          <th data-i18n="th_scale">Skala</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-g3"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Global lagre-bar -->
+<div class="save-bar">
+  <button class="btn btn-primary" onclick="saveAll()" data-i18n="btn_save_all">Lagre alle og restart</button>
+  <span class="toast" id="main-toast"></span>
+</div>
+</main>
+
+<footer>
+  <span data-i18n="credit">Utviklet av Vegard Myrvang</span>
+  <div class="support-btns">
+    <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+      ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+    </a>
+    <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+      <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+    </a>
+  </div>
+</footer>
+
+<script>
+const API = 'http://' + location.hostname + ':8080';
+const NUM = 18;
+const GROUP_TBODIES = ['tbody-g1','tbody-g2','tbody-g3'];
+
+let cal = {};
+let liveA = new Array(NUM).fill(null);
+
+// ── Language ──────────────────────────────────────────────────────────────────
+const T = {
+  no: {
+    nav_dash:'Dashboard', nav_cal:'Kalibrering', nav_set:'Innstillinger', nav_sys:'System',
+    global_title:'Globale skaleringsfaktorer',
+    hint_volt:'Eks: 233 / 2749049 = 0.0000848',
+    hint_watt:'Kalibreres mot kjent last',
+    global_ref_label:'Global referanse — alle CT-er samtidig',
+    hint_global_ref:'F.eks. 3.34 A fra varmeovn gjennom alle',
+    btn_fill_all:'Fyll alle ref', btn_calc_all:'Beregn alle',
+    btn_zero_all:'0 A — nullstill alle',
+    btn_save_all:'Lagre alle og restart',
+    g1_title:'Gruppe 1', g2_title:'Gruppe 2', g3_title:'Gruppe 3',
+    th_name:'Navn', th_live:'Live A', th_ref:'Ref A', th_scale:'Skala',
+    btn_calc:'Beregn', btn_save:'Lagre',
+    credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
+    alert_ref:'Skriv inn referansestrøm (A >= 0)',
+    alert_no_live:'Ingen live-maaleverdi for krets',
+  },
+  en: {
+    nav_dash:'Dashboard', nav_cal:'Calibration', nav_set:'Settings', nav_sys:'System',
+    global_title:'Global scaling factors',
+    hint_volt:'E.g. 233 / 2749049 = 0.0000848',
+    hint_watt:'Calibrate against known load',
+    global_ref_label:'Global reference — all CTs at once',
+    hint_global_ref:'E.g. 3.34 A from heater through all circuits',
+    btn_fill_all:'Fill all ref', btn_calc_all:'Calculate all',
+    btn_zero_all:'0 A — zero all circuits',
+    btn_save_all:'Save all and restart',
+    g1_title:'Group 1', g2_title:'Group 2', g3_title:'Group 3',
+    th_name:'Name', th_live:'Live A', th_ref:'Ref A', th_scale:'Scale',
+    btn_calc:'Calculate', btn_save:'Save',
+    credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
+    alert_ref:'Enter reference current (A >= 0)',
+    alert_no_live:'No live reading for circuit',
+  },
+};
+let lang = localStorage.getItem('curb_lang') || 'no';
+
+function applyLang(l) {
+  lang = l; localStorage.setItem('curb_lang', l);
+  const tr = T[l]||T.no;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ const k=el.dataset.i18n; if(tr[k]!=null) el.textContent=tr[k]; });
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.lang===l));
+  // Re-apply button labels in dynamically built rows
+  for(let i=0;i<NUM;i++){
+    const bc=document.getElementById('btn-calc'+i); if(bc) bc.textContent=tr.btn_calc;
+    const bs=document.getElementById('btn-save'+i); if(bs) bs.textContent=tr.btn_save;
+  }
+}
+
+// ── Build circuit rows ────────────────────────────────────────────────────────
+GROUP_TBODIES.forEach((tbId, gi) => {
+  const tbody = document.getElementById(tbId);
+  const start = gi * 6;
+  for (let i = start; i < start+6; i++) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>'+(i+1)+'</td>'+
+      '<td><input type="text" id="name'+i+'" placeholder="Krets '+(i+1)+'"></td>'+
+      '<td><span class="live-val zero" id="live'+i+'">—</span></td>'+
+      '<td><input type="number" id="ref'+i+'" step="0.001" min="0" placeholder="A"></td>'+
+      '<td style="white-space:nowrap">'+
+        '<button class="tbtn" id="btn-calc'+i+'" onclick="calcScale('+i+')">Beregn</button>'+
+        ' <button class="tbtn zero-btn" title="Sett skala=0 (deaktiver krets)" onclick="setZeroA('+i+')">0A</button>'+
+      '</td>'+
+      '<td><input class="scale-inp" type="number" id="scale'+i+'" step="0.000000001"></td>'+
+      '<td style="white-space:nowrap">'+
+        '<button class="tbtn save-btn" id="btn-save'+i+'" onclick="saveCircuit('+i+')">Lagre</button>'+
+        '<span class="save-ok" id="sok'+i+'">&#10003;</span>'+
+      '</td>';
+    tbody.appendChild(tr);
+  }
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function toast(id, ok, msg) {
+  const el=document.getElementById(id);
+  el.textContent=msg; el.className='toast '+(ok?'ok':'err');
+  setTimeout(()=>el.className='toast', 4000);
+}
+
+function flashOk(i) {
+  const el=document.getElementById('sok'+i);
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2000);
+}
+
+// ── Calibration logic ─────────────────────────────────────────────────────────
+function calcScale(i) {
+  const tr=T[lang]||T.no;
+  const refA=parseFloat(document.getElementById('ref'+i).value);
+  if (isNaN(refA)||refA<0) { alert(tr.alert_ref); return; }
+  if (refA===0) { document.getElementById('scale'+i).value='0'; return; }
+  const rawA=liveA[i];
+  if (!rawA||rawA<=0) { alert(tr.alert_no_live+' '+(i+1)); return; }
+  const oldScale=parseFloat(document.getElementById('scale'+i).value)||1;
+  document.getElementById('scale'+i).value=(oldScale*(refA/rawA)).toExponential(8);
+}
+
+function setZeroA(i) {
+  document.getElementById('ref'+i).value='0';
+  calcScale(i);
+}
+
+function fillAllRef() {
+  const val=document.getElementById('global-ref').value;
+  if (!val) return;
+  for(let i=0;i<NUM;i++) document.getElementById('ref'+i).value=val;
+}
+
+function calcAllScale() {
+  const tr=T[lang]||T.no;
+  const val=parseFloat(document.getElementById('global-ref').value);
+  if (isNaN(val)||val<0) { alert(tr.alert_ref); return; }
+  for(let i=0;i<NUM;i++) { document.getElementById('ref'+i).value=val; calcScale(i); }
+}
+
+function setAllZero() {
+  for(let i=0;i<NUM;i++) setZeroA(i);
+}
+
+// ── Build payload ─────────────────────────────────────────────────────────────
+function buildPayload() {
+  const scales=[],names=[];
+  for(let i=0;i<NUM;i++){
+    scales.push(parseFloat(document.getElementById('scale'+i).value)||0);
+    names.push(document.getElementById('name'+i).value.trim());
+  }
+  return {
+    volt_scale: parseFloat(document.getElementById('volt_scale').value)||0,
+    watt_scale: parseFloat(document.getElementById('watt_scale').value)||0,
+    pf_scale:   parseFloat(document.getElementById('pf_scale').value)||0,
+    circuit_current_scales: scales,
+    circuit_names: names,
+  };
+}
+
+// ── Save all ──────────────────────────────────────────────────────────────────
+async function saveAll() {
+  const body=buildPayload();
+  try {
+    const res=await fetch(API+'/api/calibration',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json();
+    if(res.ok){toast('main-toast',true,'&#10003; '+data.message);toast('global-toast',true,'&#10003; Lagret');cal=body;}
+    else toast('main-toast',false,'&#10007; '+data.error);
+  }catch(e){toast('main-toast',false,'Feil: '+e.message);}
+}
+
+// ── Save single circuit ───────────────────────────────────────────────────────
+async function saveCircuit(i) {
+  const body=buildPayload();
+  try {
+    const res=await fetch(API+'/api/calibration',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json();
+    if(res.ok){flashOk(i);cal=body;}
+    else toast('main-toast',false,'&#10007; Krets '+(i+1)+': '+(data.error||'ukjent feil'));
+  }catch(e){toast('main-toast',false,'Feil: '+e.message);}
+}
+
+// ── Load calibration ──────────────────────────────────────────────────────────
+async function loadCal() {
+  try {
+    const res=await fetch(API+'/api/calibration');
+    if(!res.ok) throw 0;
+    cal=await res.json();
+    document.getElementById('volt_scale').value=cal.volt_scale||'';
+    document.getElementById('watt_scale').value=cal.watt_scale||'';
+    document.getElementById('pf_scale').value  =cal.pf_scale  ||'';
+    const sc=cal.circuit_current_scales||[], nm=cal.circuit_names||[];
+    for(let i=0;i<NUM;i++){
+      document.getElementById('scale'+i).value=sc[i]!=null?sc[i]:'';
+      document.getElementById('name'+i).value =nm[i]||'';
+    }
+  }catch(_){toast('global-toast',false,'Klarte ikke laste kalibrering');}
+}
+
+// ── Poll live data ────────────────────────────────────────────────────────────
+async function pollLive() {
+  try {
+    const res=await fetch(API+'/api/data');
+    if(!res.ok) return;
+    const data=await res.json();
+    (data.circuits||[]).forEach((c,i)=>{
+      if(i>=NUM) return;
+      const a=c&&c.current!=null?c.current:null;
+      liveA[i]=a;
+      const el=document.getElementById('live'+i);
+      if(a!=null){el.textContent=a.toFixed(3)+' A';el.className=a>0.05?'live-val':'live-val zero';}
+      else{el.textContent='—';el.className='live-val zero';}
+    });
+  }catch(_){}
+}
+
+applyLang(lang);
+loadCal();
+pollLive();
+setInterval(pollLive, 2000);
+</script>
+</body>
+</html>
