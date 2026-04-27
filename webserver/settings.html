@@ -55,6 +55,18 @@
     .toast.ok  { display: inline-block; background: #0d2d1a; color: var(--green); border: 1px solid var(--green); }
     .toast.err { display: inline-block; background: #2d0d0d; color: var(--red);   border: 1px solid var(--red); }
 
+    /* ── Upload ──────────────────────────────────────────────────────────── */
+    .upload-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 16px; }
+    .upload-drop { border: 2px dashed var(--border); border-radius: 8px; padding: 28px 20px; text-align: center; transition: border-color .2s, background .2s; cursor: pointer; }
+    .upload-drop:hover, .upload-drop.dragover { border-color: var(--accent); background: rgba(56,139,253,.05); }
+    .upload-drop input[type=file] { display: none; }
+    .upload-icon { font-size: 2rem; margin-bottom: 8px; }
+    .upload-label { font-size: 0.85rem; color: var(--text); }
+    .upload-hint-txt { font-size: 0.73rem; color: var(--muted); margin-top: 4px; }
+    .upload-chosen { font-size: 0.80rem; color: var(--accent); margin-top: 10px; min-height: 1.2em; font-family: monospace; }
+    .upload-actions { display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap; }
+    .upload-status { font-size: 0.80rem; min-height: 1.3em; margin-top: 8px; }
+
     /* ── Nav support buttons ─────────────────────────────────────────────── */
     .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-right: 5px; }
     .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
@@ -157,6 +169,27 @@
   </div>
 
 </div>
+
+<!-- File upload -->
+<div class="upload-section">
+  <h2 data-i18n="hdr_upload">Last opp fil til Curb</h2>
+  <div class="upload-drop" id="upload-drop" onclick="document.getElementById('upload-input').click()"
+       ondragover="event.preventDefault();this.classList.add('dragover')"
+       ondragleave="this.classList.remove('dragover')"
+       ondrop="handleDrop(event)">
+    <div class="upload-icon">📂</div>
+    <div class="upload-label" data-i18n="upload_click">Klikk eller dra fil hit</div>
+    <div class="upload-hint-txt" data-i18n="upload_types">HTML-sider, bilder (png/jpg/gif) eller Lua-skript — maks 512 KB</div>
+    <input type="file" id="upload-input" accept=".html,.png,.jpg,.jpeg,.gif,.lua" onchange="fileChosen(this.files[0])">
+  </div>
+  <div class="upload-chosen" id="upload-chosen"></div>
+  <div class="upload-actions">
+    <button class="btn btn-primary" onclick="uploadFile()" data-i18n="upload_btn">Last opp</button>
+    <span id="upload-progress" style="font-size:0.80rem;color:var(--muted)"></span>
+  </div>
+  <div class="upload-status" id="upload-status"></div>
+</div>
+
 </main>
 
 <footer>
@@ -178,6 +211,12 @@ const T = {
     lbl_interval:'MQTT oppdateringsintervall (sekunder)',
     hint_interval:'Hvor ofte data sendes til MQTT-broker. Standard: 10s',
     btn_save:'Lagre og restart',
+    hdr_upload:'Last opp fil til Curb',
+    upload_click:'Klikk eller dra fil hit',
+    upload_types:'HTML-sider, bilder (png/jpg/gif) eller Lua-skript — maks 512 KB',
+    upload_btn:'Last opp',
+    upload_ok:'Lastet opp',
+    upload_restarted:'(streamer restartet)',
     credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
     update_avail:'Ny versjon tilgjengelig:',
   },
@@ -192,6 +231,12 @@ const T = {
     lbl_interval:'MQTT update interval (seconds)',
     hint_interval:'How often data is sent to the MQTT broker. Default: 10s',
     btn_save:'Save and restart',
+    hdr_upload:'Upload file to Curb',
+    upload_click:'Click or drag file here',
+    upload_types:'HTML pages, images (png/jpg/gif) or Lua scripts — max 512 KB',
+    upload_btn:'Upload',
+    upload_ok:'Uploaded',
+    upload_restarted:'(streamer restarted)',
     credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
     update_avail:'New version available:',
   },
@@ -248,6 +293,73 @@ async function saveMqtt() {
       document.getElementById('password').value='';
     } else toast('mqtt-toast',false,'&#10007; '+data.error);
   } catch(e) { toast('mqtt-toast',false,'Feil: '+e.message); }
+}
+
+// ── Fil-opplasting ────────────────────────────────────────────────────────────
+let chosenFile = null;
+
+function fileChosen(file) {
+  chosenFile = file || null;
+  const el = document.getElementById('upload-chosen');
+  el.textContent = file ? file.name + '  (' + (file.size / 1024).toFixed(1) + ' KB)' : '';
+  document.getElementById('upload-status').textContent = '';
+  document.getElementById('upload-status').style.color = '';
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-drop').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    fileChosen(file);
+    document.getElementById('upload-input').files; // can't set, but chosenFile is set
+  }
+}
+
+async function uploadFile() {
+  const tr = T[lang] || T.no;
+  const statusEl = document.getElementById('upload-status');
+  const progEl   = document.getElementById('upload-progress');
+
+  if (!chosenFile) {
+    statusEl.textContent = '⚠ ' + (lang === 'en' ? 'Choose a file first' : 'Velg en fil først');
+    statusEl.style.color = 'var(--yellow)';
+    return;
+  }
+  if (chosenFile.size > 512 * 1024) {
+    statusEl.textContent = '✗ ' + (lang === 'en' ? 'File too large (max 512 KB)' : 'Filen er for stor (maks 512 KB)');
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+
+  progEl.textContent = lang === 'en' ? 'Uploading…' : 'Laster opp…';
+  statusEl.textContent = '';
+
+  const fd = new FormData();
+  fd.append('file', chosenFile, chosenFile.name);
+
+  try {
+    const res  = await fetch(API + '/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    progEl.textContent = '';
+    if (res.ok) {
+      let msg = '✓ ' + tr.upload_ok + ': ' + data.file + '  (' + data.bytes + ' B)';
+      if (data.restarted) msg += '  ' + tr.upload_restarted;
+      statusEl.textContent = msg;
+      statusEl.style.color = 'var(--green)';
+      // Reset
+      chosenFile = null;
+      document.getElementById('upload-chosen').textContent = '';
+      document.getElementById('upload-input').value = '';
+    } else {
+      statusEl.textContent = '✗ ' + (data.error || 'Ukjent feil');
+      statusEl.style.color = 'var(--red)';
+    }
+  } catch(e) {
+    progEl.textContent = '';
+    statusEl.textContent = '✗ ' + (lang === 'en' ? 'Connection error' : 'Tilkoblingsfeil');
+    statusEl.style.color = 'var(--red)';
+  }
 }
 
 const APP_VERSION = 'v1.2';

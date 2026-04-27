@@ -1,5 +1,5 @@
 #!/usr/bin/env lua
--- api-server.lua  v1.2
+-- api-server.lua  v1.3
 -- Minimal HTTP API-server for Curb web-grensesnitt (port 8080).
 -- Styres av hm (health monitor) fra /data/lamarr/
 --
@@ -10,6 +10,7 @@
 --   GET  /api/mqtt           Les MQTT-konfig (passord maskert)
 --   POST /api/mqtt           Lagre MQTT-konfig + restart streamer
 --   GET  /api/status         Systemstatus
+--   POST /api/upload         Last opp fil (HTML, bilder, Lua) -- maks 512 KB
 
 io.stdout:setvbuf('no')
 io.stderr:setvbuf('no')
@@ -21,10 +22,21 @@ local fileLog = require('logging.rolling_file')
 
 local logger = fileLog('/var/log/api-server.log', 256 * 1024, 2)
 logger:setLevel(logging.INFO)
-logger:info('api-server v1.2 starting on port 8080')
+logger:info('api-server v1.3 starting on port 8080')
 
 -- ── Filer ─────────────────────────────────────────────────────────────────────
-local WEB_VERSION = 'v1.2'
+local WEB_VERSION   = 'v1.2'
+local MAX_UPLOAD    = 512 * 1024   -- 512 KB maks
+
+-- Tillatte filendelser og maldirektorier for opplasting
+local UPLOAD_DIRS = {
+  html = '/data/sd/www/',
+  png  = '/data/sd/www/',
+  jpg  = '/data/sd/www/',
+  jpeg = '/data/sd/www/',
+  gif  = '/data/sd/www/',
+  lua  = '/data/lamarr/',
+}
 local CAL_FILE    = '/data/calibration.json'
 local MQTT_FILE   = '/data/mqtt-config.json'
 local DATA_FILE   = '/tmp/www/latest.json'
@@ -103,7 +115,7 @@ end
 
 -- ── Request parser ────────────────────────────────────────────────────────────
 local function parse_request(client)
-  client:settimeout(2)   -- 2s maks per receive -- begrenser freeze ved treg/hengende klient
+  client:settimeout(2)
   local line, err = client:receive('*l')
   if not line then return nil end
 
@@ -112,22 +124,150 @@ local function parse_request(client)
 
   -- Headers
   local content_length = 0
+  local content_type   = nil
   while true do
     line = client:receive('*l')
     if not line or line == '' or line == '\r' then break end
     local k, v = line:match('^([^:]+):%s*(.-)%s*$')
-    if k and k:lower() == 'content-length' then
-      content_length = tonumber(v) or 0
+    if k then
+      local kl = k:lower()
+      if kl == 'content-length' then
+        content_length = tonumber(v) or 0
+      elseif kl == 'content-type' then
+        content_type = v
+      end
     end
   end
 
-  -- Body
+  -- Body (lenger timeout for store opplastinger)
   local body = ''
   if content_length > 0 then
+    if content_length > 4096 then client:settimeout(30) end
     body = client:receive(content_length) or ''
+    client:settimeout(2)
   end
 
-  return { method = method, path = path, body = body }
+  return { method = method, path = path, body = body, content_type = content_type }
+end
+
+-- ── Fil-opplasting hjelpere ───────────────────────────────────────────────────
+
+-- Renser filnavn: fjerner stikomponenter, tillater kun trygge tegn
+local function safe_basename(name)
+  local base = (name or ''):match('[^/\\]+$') or ''
+  base = base:gsub('[^%w%.%-]', '')   -- kun bokstaver, tall, punkt, bindestrek
+  if base == '' or base:sub(1,1) == '.' then return nil end
+  return base
+end
+
+-- Parser multipart/form-data og returnerer (filnavn, data) eller (nil, nil, feilmelding)
+local function parse_multipart(body, boundary)
+  local sep = '--' .. boundary
+  -- Finn start av forste del
+  local s = body:find(sep, 1, true)
+  if not s then return nil, nil, 'Ingen boundary funnet' end
+
+  local hdr_start = s + #sep + 2   -- hopp over boundary + CRLF
+
+  -- Finn slutten av headers (dobbel CRLF)
+  local hdr_end = body:find('\r\n\r\n', hdr_start, true)
+  if not hdr_end then return nil, nil, 'Ingen header-slutt' end
+
+  local headers  = body:sub(hdr_start, hdr_end - 1)
+  local filename = headers:match('filename="([^"]+)"')
+  if not filename then return nil, nil, 'Ingen filename i Content-Disposition' end
+
+  local data_start = hdr_end + 4   -- hopp over \r\n\r\n
+
+  -- Finn avsluttende boundary
+  local close_pat = '\r\n' .. sep .. '--'
+  local data_end  = body:find(close_pat, data_start, true)
+  if not data_end then
+    -- Prøv uten ledende CRLF (noen nettlesere)
+    data_end = body:find(sep .. '--', data_start, true)
+    if not data_end then return nil, nil, 'Ingen avsluttende boundary' end
+  end
+
+  return filename, body:sub(data_start, data_end - 1)
+end
+
+local function handle_post_upload(client, req)
+  -- Størrelsessjekk
+  if #req.body > MAX_UPLOAD then
+    return json_err(client, '413 Request Entity Too Large',
+      'Maks filstorrelse er ' .. math.floor(MAX_UPLOAD / 1024) .. ' KB')
+  end
+
+  -- Hent boundary fra Content-Type
+  local ct = req.content_type or ''
+  local boundary = ct:match('boundary=([^;%s]+)')
+  if not boundary then
+    return json_err(client, '400 Bad Request', 'Mangler multipart boundary')
+  end
+  boundary = boundary:gsub('"', '')   -- fjern eventuelle anf.tegn
+
+  -- Parse multipart
+  local filename, data, perr = parse_multipart(req.body, boundary)
+  if not filename then
+    return json_err(client, '400 Bad Request', 'Multipart-feil: ' .. (perr or ''))
+  end
+
+  -- Valider filnavn
+  local safe = safe_basename(filename)
+  if not safe then
+    return json_err(client, '400 Bad Request', 'Ugyldig filnavn: ' .. filename)
+  end
+
+  -- Hent og sjekk filendelse
+  local ext = safe:match('%.([%a]+)$')
+  if not ext then
+    return json_err(client, '400 Bad Request', 'Filnavn mangler endelse')
+  end
+  ext = ext:lower()
+
+  local dir = UPLOAD_DIRS[ext]
+  if not dir then
+    return json_err(client, '400 Bad Request',
+      'Filtype ikke tillatt: .' .. ext ..
+      ' (tillatt: html, png, jpg, jpeg, gif, lua)')
+  end
+
+  -- Lua: kun tillatte filer for sikkerhets skyld
+  if ext == 'lua' then
+    if safe ~= 'mqtt-streamer.lua' and safe ~= 'api-server.lua' then
+      return json_err(client, '400 Bad Request',
+        'Lua: kun mqtt-streamer.lua og api-server.lua er tillatt')
+    end
+  end
+
+  -- Skriv filen
+  local dest = dir .. safe
+  local ok, werr = write_file(dest, data)
+  if not ok then
+    return json_err(client, '500 Internal Server Error',
+      'Kunne ikke skrive fil: ' .. (werr or dest))
+  end
+
+  -- Webfiler: kopier også til aktiv /tmp/www/ slik at endringen er umiddelbar
+  if dir == '/data/sd/www/' then
+    write_file('/tmp/www/' .. safe, data)
+  end
+
+  -- Lua streamer: restart slik at ny versjon lastes
+  local restarted = false
+  if safe == 'mqtt-streamer.lua' then
+    restart_streamer()
+    restarted = true
+  end
+
+  logger:info('Fil lastet opp: %s (%d bytes)', dest, #data)
+  json_ok(client, {
+    ok       = true,
+    file     = safe,
+    bytes    = #data,
+    path     = dest,
+    restarted = restarted,
+  })
 end
 
 -- ── Route handlers ────────────────────────────────────────────────────────────
@@ -269,6 +409,7 @@ local routes = {
   ['GET /api/mqtt']         = handle_get_mqtt,
   ['POST /api/mqtt']        = function(c, req) handle_post_mqtt(c, req.body) end,
   ['GET /api/status']       = handle_get_status,
+  ['POST /api/upload']      = handle_post_upload,
 }
 
 local function handle(client)
