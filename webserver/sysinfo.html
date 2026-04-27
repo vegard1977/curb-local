@@ -8,7 +8,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #0d1117; --surface: #161b22; --border: #21262d;
-      --text: #c9d1d9; --muted: #484f58; --accent: #388bfd;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
       --green: #3fb950; --red: #f85149; --yellow: #d29922;
     }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
@@ -16,9 +16,9 @@
     nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; }
     .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
     .nav-brand span { color: var(--accent); }
-    nav a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
-    nav a:hover { color: var(--text); }
-    nav a.active { color: #fff; border-color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
     .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
     .lang-toggle { display: flex; gap: 3px; }
     .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
@@ -41,6 +41,12 @@
     .stat-unit { font-size: 0.75rem; color: var(--muted); margin-left: 2px; font-weight: 400; }
     .stat-sub { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
 
+    /* ── Device info row ──────────────────────────────────────────────── */
+    .dev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .dev-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
+    .dev-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+    .dev-val { font-size: 0.88rem; font-weight: 600; color: #e6edf3; font-variant-numeric: tabular-nums; word-break: break-all; }
+
     /* ── Process status ────────────────────────────────────────────────── */
     .section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
     .section-hdr { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 0.80rem; font-weight: 600; color: #e6edf3; }
@@ -61,12 +67,14 @@
     .mem-fill.warn { background: var(--yellow); }
     .mem-fill.err  { background: var(--red); }
 
-    footer { border-top: 1px solid var(--border); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 900px; margin: 0 auto; width: 100%; }
+    /* ── Nav support buttons ─────────────────────────────────────────────── */
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-right: 5px; }
     .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
     .coffee-btn:hover { opacity: 0.85; }
     .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
     .kofi-btn:hover { opacity: 0.85; }
-    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 900px; margin: 0 auto; width: 100%; }
 
     .refresh-btn { background: #21262d; border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 14px; font-size: 0.80rem; cursor: pointer; transition: border-color .15s; }
     .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -78,10 +86,20 @@
 <nav>
   <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
   <a href="energy.html" data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html" data-i18n="nav_stat">Statistikk</a>
   <a href="calibration.html" data-i18n="nav_cal">Kalibrering</a>
   <a href="settings.html" data-i18n="nav_set">Innstillinger</a>
   <a href="sysinfo.html" class="active" data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" data-i18n="nav_ser">Serial / Powerline</a>
   <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
     <div class="lang-toggle">
       <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
       <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
@@ -90,6 +108,26 @@
 </nav>
 
 <main>
+
+  <!-- Device info -->
+  <div class="dev-grid">
+    <div class="dev-card">
+      <div class="dev-label" data-i18n="dev_serial">Serienummer</div>
+      <div class="dev-val" id="val-serial">—</div>
+    </div>
+    <div class="dev-card">
+      <div class="dev-label" data-i18n="dev_hw">Hardware</div>
+      <div class="dev-val" id="val-hw">—</div>
+    </div>
+    <div class="dev-card">
+      <div class="dev-label" data-i18n="dev_os">OS-versjon</div>
+      <div class="dev-val" id="val-os">—</div>
+    </div>
+    <div class="dev-card">
+      <div class="dev-label" data-i18n="dev_sw">Programvare</div>
+      <div class="dev-val" id="val-sw">—</div>
+    </div>
+  </div>
 
   <!-- Status cards -->
   <div class="stat-grid">
@@ -130,6 +168,33 @@
     </div>
   </div>
 
+  <!-- Storage -->
+  <div class="section">
+    <div class="section-hdr" data-i18n="hdr_storage">Lagring</div>
+    <div class="mem-bar-wrap" style="padding-bottom:4px">
+      <div class="mem-labels">
+        <span>/data &nbsp;<span id="data-pct" style="color:var(--text)">—%</span></span>
+        <span id="data-used-lbl">—</span>
+      </div>
+      <div class="mem-bar"><div class="mem-fill" id="data-fill" style="width:0%"></div></div>
+      <div class="mem-labels" style="margin-top:2px">
+        <span data-i18n="mem_used">Brukt</span>
+        <span id="data-total-lbl">—</span>
+      </div>
+    </div>
+    <div class="mem-bar-wrap" style="padding-top:8px">
+      <div class="mem-labels">
+        <span>/data/sd &nbsp;<span id="sd-pct" style="color:var(--text)">—%</span></span>
+        <span id="sd-used-lbl">—</span>
+      </div>
+      <div class="mem-bar"><div class="mem-fill" id="sd-fill" style="width:0%"></div></div>
+      <div class="mem-labels" style="margin-top:2px">
+        <span data-i18n="mem_used">Brukt</span>
+        <span id="sd-total-lbl">—</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Process status -->
   <div class="section">
     <div class="section-hdr" data-i18n="hdr_proc">Prosesser</div>
@@ -149,6 +214,48 @@
     </div>
   </div>
 
+  <!-- Network -->
+  <div class="section">
+    <div class="section-hdr" data-i18n="hdr_net">Nettverk</div>
+    <div class="proc-list">
+      <div class="proc-row">
+        <span class="proc-name" data-i18n="net_ip">IP-adresse</span>
+        <span id="val-ip" style="font-variant-numeric:tabular-nums;font-size:0.85rem">—</span>
+      </div>
+    </div>
+    <div id="iface-list"></div>
+  </div>
+
+  <!-- PLC -->
+  <div class="section" id="plc-section" style="display:none">
+    <div class="section-hdr" data-i18n="hdr_plc">Powerline (PLC)</div>
+    <div class="proc-list">
+      <div class="proc-row">
+        <span class="proc-name" data-i18n="plc_cco">Tilkoblet node</span>
+        <span id="val-plc-cco" style="font-size:0.78rem;font-family:monospace;color:var(--muted)">—</span>
+      </div>
+      <div class="proc-row">
+        <span class="proc-name" data-i18n="plc_snr">Signal TX / RX</span>
+        <span id="val-plc-snr" style="font-size:0.85rem;font-variant-numeric:tabular-nums">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Version info -->
+  <div class="section" style="margin-bottom:16px">
+    <div class="section-hdr" data-i18n="hdr_version">Versjon</div>
+    <div class="proc-list">
+      <div class="proc-row">
+        <span class="proc-name" data-i18n="ver_web">Web-grensesnitt</span>
+        <span id="val-web-ver" style="font-size:0.78rem;color:var(--muted)">—</span>
+      </div>
+      <div class="proc-row">
+        <span class="proc-name" data-i18n="ver_lua">Lua-kjøretid</span>
+        <span id="val-lua-ver" style="font-size:0.78rem;color:var(--muted)">—</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Refresh -->
   <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
     <button class="refresh-btn" onclick="load()" data-i18n="btn_refresh">Oppdater</button>
@@ -158,35 +265,35 @@
 </main>
 
 <footer>
-  <span data-i18n="credit">Utviklet av Vegard Myrvang</span>
-  <div class="support-btns">
-    <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
-      ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
-    </a>
-    <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
-      <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
-    </a>
-  </div>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v1.1</span></span>
 </footer>
 
 <script>
-const API = 'http://' + location.hostname + ':8080';
+const WEB_VERSION = 'v1.1';
 
 const T = {
   no: {
-    nav_dash:'Dashboard', nav_cal:'Kalibrering', nav_set:'Innstillinger', nav_sys:'System',
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering', nav_set:'Innstillinger', nav_sys:'System', nav_ser:'Serial / Powerline',
+    dev_serial:'Serienummer', dev_hw:'Hardware', dev_os:'OS-versjon', dev_sw:'Programvare',
     lbl_uptime:'Oppetid', lbl_data_age:'Data alder', lbl_mem:'Ledig minne', lbl_load:'CPU-last (1m)',
-    hdr_mem:'Minnebruk', mem_used:'Brukt',
+    hdr_mem:'Minnebruk', hdr_storage:'Lagring', mem_used:'Brukt',
+    hdr_net:'Nettverk', net_ip:'IP-adresse', net_mac:'MAC', net_drop:'drops',
+    hdr_plc:'Powerline (PLC)', plc_cco:'Tilkoblet node', plc_snr:'Signal TX / RX',
     hdr_proc:'Prosesser', proc_run:'Kjoerer', proc_stop:'Stoppet',
+    hdr_version:'Versjon', ver_web:'Web-grensesnitt', ver_lua:'Lua-kjøretid',
     btn_refresh:'Oppdater',
     data_ok:'Data er fersk', data_stale:'Data er gammel',
     credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
   },
   en: {
-    nav_dash:'Dashboard', nav_cal:'Calibration', nav_set:'Settings', nav_sys:'System',
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration', nav_set:'Settings', nav_sys:'System', nav_ser:'Serial / Powerline',
+    dev_serial:'Serial number', dev_hw:'Hardware', dev_os:'OS version', dev_sw:'Software',
     lbl_uptime:'Uptime', lbl_data_age:'Data age', lbl_mem:'Free memory', lbl_load:'CPU load (1m)',
-    hdr_mem:'Memory usage', mem_used:'Used',
+    hdr_mem:'Memory usage', hdr_storage:'Storage', mem_used:'Used',
+    hdr_net:'Network', net_ip:'IP address', net_mac:'MAC', net_drop:'drops',
+    hdr_plc:'Powerline (PLC)', plc_cco:'Connected node', plc_snr:'Signal TX / RX',
     hdr_proc:'Processes', proc_run:'Running', proc_stop:'Stopped',
+    hdr_version:'Version', ver_web:'Web interface', ver_lua:'Lua runtime',
     btn_refresh:'Refresh',
     data_ok:'Data is fresh', data_stale:'Data is stale',
     credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
@@ -223,7 +330,7 @@ function setBadge(id, running) {
 
 async function load() {
   try {
-    const res=await fetch(API+'/api/status');
+    const res=await fetch('/sysinfo.json?_='+Date.now());
     if(!res.ok) throw new Error('HTTP '+res.status);
     const d=await res.json();
     const tr=T[lang]||T.no;
@@ -268,6 +375,65 @@ async function load() {
     setBadge('badge-streamer', d.streamer_running);
     setBadge('badge-sampler',  d.sampler_running);
 
+    // Device info
+    if (d.serial)     document.getElementById('val-serial').textContent = d.serial;
+    if (d.hw_version) document.getElementById('val-hw').textContent     = d.hw_version;
+    if (d.os_version) document.getElementById('val-os').textContent     = d.os_version;
+    if (d.sw_version) document.getElementById('val-sw').textContent     = d.sw_version;
+
+    // Storage
+    function updateDisk(prefix, disk) {
+      if (!disk || !disk.total_kb) return;
+      const pct = Math.round(disk.used_kb / disk.total_kb * 100);
+      document.getElementById(prefix+'-pct').textContent = pct + '%';
+      document.getElementById(prefix+'-used-lbl').textContent = fmtBytes(disk.used_kb);
+      document.getElementById(prefix+'-total-lbl').textContent = fmtBytes(disk.total_kb);
+      const fill = document.getElementById(prefix+'-fill');
+      fill.style.width = pct + '%';
+      fill.className = 'mem-fill' + (pct >= 90 ? ' err' : pct >= 75 ? ' warn' : '');
+    }
+    updateDisk('data', d.disk_data);
+    updateDisk('sd',   d.disk_sd);
+
+    // Network
+    if (d.net) {
+      const tr = T[lang]||T.no;
+      if (d.net.ip) document.getElementById('val-ip').textContent = d.net.ip;
+      if (Array.isArray(d.net.interfaces)) {
+        document.getElementById('iface-list').innerHTML = d.net.interfaces.map(ifc => {
+          const up = ifc.state === 'up';
+          const badge = `<span class="badge ${up?'run':'stop'}"><span class="badge dot"></span>${ifc.state||'—'}</span>`;
+          const mac   = `<span style="font-size:0.70rem;font-family:monospace;color:var(--muted)">${ifc.mac||''}</span>`;
+          let traffic = '';
+          if (up && ifc.rx_bytes != null) {
+            const drop = (ifc.rx_drop > 0)
+              ? ` <span style="color:var(--yellow)">${ifc.rx_drop.toLocaleString()} ${tr.net_drop}</span>` : '';
+            traffic = `<span style="font-size:0.72rem;color:var(--muted)">↓${fmtBytes(ifc.rx_bytes/1024)} ↑${fmtBytes(ifc.tx_bytes/1024)}${drop}</span>`;
+          }
+          return `<div class="proc-row">
+            <span class="proc-name" style="font-family:monospace;font-size:0.82rem">${ifc.name}</span>
+            <span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">${traffic}${mac}${badge}</span>
+          </div>`;
+        }).join('');
+      }
+    }
+
+    // PLC
+    if (d.plc && d.plc.cco_mac) {
+      document.getElementById('plc-section').style.display = '';
+      document.getElementById('val-plc-cco').textContent = d.plc.cco_mac;
+      if (d.plc.tx_snr != null) {
+        const tx = d.plc.tx_snr, rx = d.plc.rx_snr;
+        const col = (tx < 10 || rx < 10) ? 'var(--yellow)' : 'var(--green)';
+        document.getElementById('val-plc-snr').innerHTML =
+          `<span style="color:${col}">${tx} dB</span> / <span style="color:${col}">${rx} dB</span>`;
+      }
+    }
+
+    // Versions
+    document.getElementById('val-web-ver').textContent = WEB_VERSION;
+    if (d.lua_version) document.getElementById('val-lua-ver').textContent = d.lua_version;
+
     document.getElementById('last-update').textContent=new Date().toLocaleTimeString();
   } catch(e) {
     document.getElementById('val-uptime').textContent='—';
@@ -277,6 +443,11 @@ async function load() {
 applyLang(lang);
 load();
 setInterval(load, 10000);
+
+// Oppdater umiddelbart når fanen blir aktiv igjen
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') load();
+});
 </script>
 </body>
 </html>

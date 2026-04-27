@@ -8,7 +8,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #0d1117; --surface: #161b22; --border: #21262d;
-      --text: #c9d1d9; --muted: #484f58; --accent: #388bfd;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
       --green: #3fb950; --red: #f85149; --yellow: #d29922;
       --g1: #388bfd; --g2: #3fb950; --g3: #d29922;
       --input-bg: #0d1117;
@@ -19,9 +19,9 @@
     nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; }
     .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
     .nav-brand span { color: var(--accent); }
-    nav a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
-    nav a:hover { color: var(--text); }
-    nav a.active { color: #fff; border-color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
     .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
     .lang-toggle { display: flex; gap: 3px; }
     .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
@@ -48,6 +48,9 @@
     .g2-hdr .hdr-title { color: var(--g2); }
     .g3-hdr .hdr-title { color: var(--g3); }
     .hdr-sub { font-size: 0.70rem; color: var(--muted); }
+    .g1-hdr .hdr-sub { color: var(--g1); }
+    .g2-hdr .hdr-sub { color: var(--g2); }
+    .g3-hdr .hdr-sub { color: var(--g3); }
 
     /* ── Global card body ────────────────────────────────────────────────── */
     .global-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
@@ -95,6 +98,9 @@
     .save-ok { font-size: 0.68rem; color: var(--green); margin-left: 2px; opacity: 0; transition: opacity .3s; pointer-events: none; }
     .save-ok.show { opacity: 1; }
 
+    /* ── Cal tip box ─────────────────────────────────────────────────────── */
+    .cal-tip { padding: 10px 16px; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--g1); line-height: 1.55; opacity: 0.85; }
+
     /* ── Section footer ──────────────────────────────────────────────────── */
     .section-footer { padding: 11px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
@@ -111,13 +117,15 @@
     .toast.ok  { display: inline-block; background: #0d2d1a; color: var(--green); border: 1px solid var(--green); }
     .toast.err { display: inline-block; background: #2d0d0d; color: var(--red);   border: 1px solid var(--red); }
 
-    /* ── Footer ──────────────────────────────────────────────────────────── */
-    footer { border-top: 1px solid var(--border); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 1200px; margin: 0 auto; width: 100%; }
+    /* ── Nav support buttons ─────────────────────────────────────────────── */
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-right: 5px; }
     .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
     .coffee-btn:hover { opacity: 0.85; }
     .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
     .kofi-btn:hover { opacity: 0.85; }
-    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* ── Footer ──────────────────────────────────────────────────────────── */
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 1200px; margin: 0 auto; width: 100%; }
   </style>
 </head>
 <body>
@@ -125,10 +133,20 @@
 <nav>
   <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
   <a href="energy.html" data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html" data-i18n="nav_stat">Statistikk</a>
   <a href="calibration.html" class="active" data-i18n="nav_cal">Kalibrering</a>
   <a href="settings.html" data-i18n="nav_set">Innstillinger</a>
   <a href="sysinfo.html" data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" data-i18n="nav_ser">Serial / Powerline</a>
   <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
     <div class="lang-toggle">
       <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
       <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
@@ -174,8 +192,6 @@
         <div class="btn-group" style="margin-top:8px">
           <button class="btn btn-warn" onclick="fillAllRef()" data-i18n="btn_fill_all">Fyll alle ref</button>
           <button class="btn btn-warn" onclick="calcAllScale()" data-i18n="btn_calc_all">Beregn alle</button>
-        </div>
-        <div class="btn-group" style="margin-top:6px">
           <button class="btn btn-warn" onclick="setAllZero()" data-i18n="btn_zero_all">0 A — nullstill alle</button>
         </div>
       </div>
@@ -202,6 +218,7 @@
         <tbody id="tbody-g1"></tbody>
       </table>
     </div>
+    <p class="cal-tip" data-i18n="cal_tip">Slik kalibrerer du: Koble referansemåler (f.eks. Fluke) til kretsen. Les av A → skriv i Ref A → Beregn → Lagre. Krets uten last: trykk 0A.</p>
   </div>
 
   <!-- ── Kort 3: Gruppe 2 CT 7-12 ──────────────────────────────────────── -->
@@ -250,15 +267,7 @@
 </main>
 
 <footer>
-  <span data-i18n="credit">Utviklet av Vegard Myrvang</span>
-  <div class="support-btns">
-    <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
-      ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
-    </a>
-    <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
-      <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
-    </a>
-  </div>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v1.1</span></span>
 </footer>
 
 <script>
@@ -272,7 +281,7 @@ let liveA = new Array(NUM).fill(null);
 // ── Language ──────────────────────────────────────────────────────────────────
 const T = {
   no: {
-    nav_dash:'Dashboard', nav_cal:'Kalibrering', nav_set:'Innstillinger', nav_sys:'System',
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering', nav_set:'Innstillinger', nav_sys:'System', nav_ser:'Serial / Powerline',
     global_title:'Globale skaleringsfaktorer',
     hint_volt:'Eks: 233 / 2749049 = 0.0000848',
     hint_watt:'Kalibreres mot kjent last',
@@ -287,9 +296,10 @@ const T = {
     credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
     alert_ref:'Skriv inn referansestrøm (A >= 0)',
     alert_no_live:'Ingen live-maaleverdi for krets',
+    cal_tip:'Slik kalibrerer du: Koble referansemåler (f.eks. Fluke) til kretsen. Les av A → skriv i Ref A → Beregn → Lagre. Krets uten last: trykk 0A.',
   },
   en: {
-    nav_dash:'Dashboard', nav_cal:'Calibration', nav_set:'Settings', nav_sys:'System',
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration', nav_set:'Settings', nav_sys:'System', nav_ser:'Serial / Powerline',
     global_title:'Global scaling factors',
     hint_volt:'E.g. 233 / 2749049 = 0.0000848',
     hint_watt:'Calibrate against known load',
@@ -304,6 +314,7 @@ const T = {
     credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
     alert_ref:'Enter reference current (A >= 0)',
     alert_no_live:'No live reading for circuit',
+    cal_tip:'How to calibrate: Connect a reference meter (e.g. Fluke) to the circuit. Read A → enter in Ref A → Calculate → Save. Unused circuit: press 0A.',
   },
 };
 let lang = localStorage.getItem('curb_lang') || 'no';
