@@ -154,6 +154,12 @@
   </div>
 </nav>
 
+<!-- Update notification banner -->
+<div id="update-banner" style="display:none;background:rgba(56,139,253,0.10);border-bottom:1px solid rgba(56,139,253,0.25);padding:7px 20px;font-size:0.80rem;color:#e6edf3;text-align:center;position:relative">
+  ⬆ <span data-i18n="update_avail">Ny versjon tilgjengelig:</span> <strong><a id="update-ver" href="https://github.com/vegardm/curb-local/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none"></a></strong>
+  <button onclick="document.getElementById('update-banner').style.display='none'" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1">×</button>
+</div>
+
 <main>
 <div class="cal-grid">
 
@@ -294,6 +300,7 @@ const T = {
     th_name:'Navn', th_live:'Live A', th_ref:'Ref A', th_scale:'Skala',
     btn_calc:'Beregn', btn_save:'Lagre',
     credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
+    update_avail:'Ny versjon tilgjengelig:',
     alert_ref:'Skriv inn referansestrøm (A >= 0)',
     alert_no_live:'Ingen live-maaleverdi for krets',
     cal_tip:'Slik kalibrerer du: Koble referansemåler (f.eks. Fluke) til kretsen. Les av A → skriv i Ref A → Beregn → Lagre. Krets uten last: trykk 0A.',
@@ -312,6 +319,7 @@ const T = {
     th_name:'Name', th_live:'Live A', th_ref:'Ref A', th_scale:'Scale',
     btn_calc:'Calculate', btn_save:'Save',
     credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
+    update_avail:'New version available:',
     alert_ref:'Enter reference current (A >= 0)',
     alert_no_live:'No live reading for circuit',
     cal_tip:'How to calibrate: Connect a reference meter (e.g. Fluke) to the circuit. Read A → enter in Ref A → Calculate → Save. Unused circuit: press 0A.',
@@ -474,7 +482,27 @@ async function pollLive() {
   }catch(_){}
 }
 
+const APP_VERSION = 'v1.2';
+
+async function checkForUpdate() {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch('https://api.github.com/repos/vegardm/curb-local/releases/latest', {signal: ctrl.signal});
+    clearTimeout(tid);
+    if (!res.ok) return;
+    const {tag_name} = await res.json();
+    if (tag_name && tag_name !== APP_VERSION) {
+      const a = document.getElementById('update-ver');
+      if (a) a.textContent = tag_name;
+      const b = document.getElementById('update-banner');
+      if (b) b.style.display = '';
+    }
+  } catch(e) {}
+}
+
 applyLang(lang);
+checkForUpdate();
 loadCal();
 pollLive();
 setInterval(pollLive, 2000);
