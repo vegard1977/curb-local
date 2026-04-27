@@ -93,7 +93,7 @@ After this: `bash install.sh` — prompts for password once at the top, reused a
 ## Installation
 
 ```bash
-git clone https://github.com/vegardm/curb-local
+git clone https://github.com/vegard1977/curb-local
 cd curb-local
 bash install.sh              # Prompts for IP interactively
 bash install.sh <curb-ip>    # Or give IP as argument
@@ -127,7 +127,7 @@ Alternatively: edit directly in the browser via `http://<curb-ip>/settings.html`
 | Dashboard | `http://<curb-ip>/energy.html` | Live power per circuit, W/A/V/PF, group totals |
 | Statistics | `http://<curb-ip>/stats.html` | Daily kWh donut charts + hourly bar chart, period selector |
 | Calibration | `http://<curb-ip>/calibration.html` | Scale factors, live readings, 0A reset |
-| Settings | `http://<curb-ip>/settings.html` | MQTT broker, credentials, device name |
+| Settings | `http://<curb-ip>/settings.html` | MQTT broker, credentials, device name, file upload |
 | System | `http://<curb-ip>/sysinfo.html` | Uptime, memory, storage, network, PLC link quality |
 | Serial / Powerline | `http://<curb-ip>/serial-guide.html` | J6 pinout, USB-serial wiring, PLC bridge guide |
 
@@ -150,6 +150,10 @@ Supports 0A calibration (mute a circuit with no load).
 ### Settings
 MQTT broker, username, password, base topic and device name — edit and save directly from the browser.
 Changes take effect after mqtt-streamer restarts (automatic via hm).
+
+**File upload** — drag-and-drop or click to upload files directly to the Curb device (no SSH needed):
+- HTML pages and images → `/data/sd/www/` (active immediately, survives reboots)
+- `mqtt-streamer.lua` or `api-server.lua` → `/data/lamarr/` (streamer auto-restarts)
 
 ### System info
 - Device info: serial number, hardware version, OS version

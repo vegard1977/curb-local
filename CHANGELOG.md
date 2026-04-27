@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.3] — 2026-04-27
+
+### Added
+- **File upload via browser** (`settings.html`) — drag-and-drop or click to upload HTML pages, images (png/jpg/gif) or Lua scripts directly to the Curb device, no SSH required
+- `api-server.lua` v1.3: `POST /api/upload` endpoint with multipart/form-data parser, filename sanitization, extension whitelist, 512 KB limit
+- Auto-restart of `mqtt-streamer.lua` when a new streamer version is uploaded
+
+### Fixed
+- GitHub repository URL corrected to `vegard1977/curb-local` in all pages and CHANGELOG (was `vegardm`)
+- Version update check now points to the correct repository
+
+---
+
 ## [v1.2] — 2026-04-27
 
 ### Added
@@ -55,6 +68,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-[v1.2]: https://github.com/vegardm/curb-local/releases/tag/v1.2
-[v1.1]: https://github.com/vegardm/curb-local/releases/tag/v1.1
-[v1.0]: https://github.com/vegardm/curb-local/releases/tag/v1.0
+[v1.3]: https://github.com/vegard1977/curb-local/releases/tag/v1.3
+[v1.2]: https://github.com/vegard1977/curb-local/releases/tag/v1.2
+[v1.1]: https://github.com/vegard1977/curb-local/releases/tag/v1.1
+[v1.0]: https://github.com/vegard1977/curb-local/releases/tag/v1.0

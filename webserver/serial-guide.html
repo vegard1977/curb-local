@@ -133,7 +133,7 @@
 
 <!-- Update notification banner -->
 <div id="update-banner" style="display:none;background:rgba(56,139,253,0.10);border-bottom:1px solid rgba(56,139,253,0.25);padding:7px 20px;font-size:0.80rem;color:#e6edf3;text-align:center;position:relative">
-  ⬆ <span data-i18n="update_avail">Ny versjon tilgjengelig:</span> <strong><a id="update-ver" href="https://github.com/vegardm/curb-local/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none"></a></strong>
+  ⬆ <span data-i18n="update_avail">Ny versjon tilgjengelig:</span> <strong><a id="update-ver" href="https://github.com/vegard1977/curb-local/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none"></a></strong>
   <button onclick="document.getElementById('update-banner').style.display='none'" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1">×</button>
 </div>
 
@@ -388,13 +388,13 @@ function applyLang(l) {
     b.classList.toggle('active', b.dataset.lang === l));
 }
 
-const APP_VERSION = 'v1.2';
+const APP_VERSION = 'v1.3';
 
 async function checkForUpdate() {
   try {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 5000);
-    const res = await fetch('https://api.github.com/repos/vegardm/curb-local/releases/latest', {signal: ctrl.signal});
+    const res = await fetch('https://api.github.com/repos/vegard1977/curb-local/releases/latest', {signal: ctrl.signal});
     clearTimeout(tid);
     if (!res.ok) return;
     const {tag_name} = await res.json();
