@@ -8,7 +8,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #0d1117; --surface: #161b22; --border: #21262d;
-      --text: #c9d1d9; --muted: #484f58; --accent: #388bfd;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
       --green: #3fb950; --red: #f85149; --input-bg: #0d1117;
     }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
@@ -16,9 +16,9 @@
     nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; }
     .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
     .nav-brand span { color: var(--accent); }
-    nav a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
-    nav a:hover { color: var(--text); }
-    nav a.active { color: #fff; border-color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
     .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
     .lang-toggle { display: flex; gap: 3px; }
     .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
@@ -55,12 +55,14 @@
     .toast.ok  { display: inline-block; background: #0d2d1a; color: var(--green); border: 1px solid var(--green); }
     .toast.err { display: inline-block; background: #2d0d0d; color: var(--red);   border: 1px solid var(--red); }
 
-    footer { border-top: 1px solid var(--border); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 1000px; margin: 0 auto; width: 100%; }
+    /* ── Nav support buttons ─────────────────────────────────────────────── */
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-right: 5px; }
     .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
     .coffee-btn:hover { opacity: 0.85; }
     .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
     .kofi-btn:hover { opacity: 0.85; }
-    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 1000px; margin: 0 auto; width: 100%; }
   </style>
 </head>
 <body>
@@ -68,10 +70,20 @@
 <nav>
   <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
   <a href="energy.html" data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html" data-i18n="nav_stat">Statistikk</a>
   <a href="calibration.html" data-i18n="nav_cal">Kalibrering</a>
   <a href="settings.html" class="active" data-i18n="nav_set">Innstillinger</a>
   <a href="sysinfo.html" data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" data-i18n="nav_ser">Serial / Powerline</a>
   <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
     <div class="lang-toggle">
       <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
       <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
@@ -127,6 +139,11 @@
       <label data-i18n="lbl_haprefix">Home Assistant discovery-prefiks</label>
       <input id="ha_prefix" type="text" placeholder="homeassistant">
     </div>
+    <div class="field">
+      <label data-i18n="lbl_interval">MQTT oppdateringsintervall (sekunder)</label>
+      <input id="publish_interval" type="number" placeholder="10" min="1" max="60">
+      <p class="hint" data-i18n="hint_interval">Hvor ofte data sendes til MQTT-broker. Standard: 10s</p>
+    </div>
     <div class="actions">
       <button class="btn btn-primary" onclick="saveMqtt()" data-i18n="btn_save">Lagre og restart</button>
       <span class="toast" id="dev-toast"></span>
@@ -137,15 +154,7 @@
 </main>
 
 <footer>
-  <span data-i18n="credit">Utviklet av Vegard Myrvang</span>
-  <div class="support-btns">
-    <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
-      ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
-    </a>
-    <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
-      <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
-    </a>
-  </div>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v1.2</span></span>
 </footer>
 
 <script>
@@ -153,24 +162,28 @@ const API = 'http://' + location.hostname + ':8080';
 
 const T = {
   no: {
-    nav_dash:'Dashboard', nav_cal:'Kalibrering', nav_set:'Innstillinger', nav_sys:'System',
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering', nav_set:'Innstillinger', nav_sys:'System', nav_ser:'Serial / Powerline',
     mqtt_title:'MQTT-broker', dev_title:'Enhet',
     lbl_host:'Broker-adresse', lbl_port:'Port', lbl_user:'Brukernavn',
     lbl_pass:'Passord', hint_pass:'Tom = behold eksisterende passord',
     placeholder_pass:'La stå for å beholde',
     lbl_topic:'Base topic', lbl_devname:'Enhetsnavn (vises i Home Assistant)',
     lbl_haprefix:'Home Assistant discovery-prefiks',
+    lbl_interval:'MQTT oppdateringsintervall (sekunder)',
+    hint_interval:'Hvor ofte data sendes til MQTT-broker. Standard: 10s',
     btn_save:'Lagre og restart',
     credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
   },
   en: {
-    nav_dash:'Dashboard', nav_cal:'Calibration', nav_set:'Settings', nav_sys:'System',
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration', nav_set:'Settings', nav_sys:'System', nav_ser:'Serial / Powerline',
     mqtt_title:'MQTT broker', dev_title:'Device',
     lbl_host:'Broker address', lbl_port:'Port', lbl_user:'Username',
     lbl_pass:'Password', hint_pass:'Leave empty to keep existing password',
     placeholder_pass:'Leave blank to keep existing',
     lbl_topic:'Base topic', lbl_devname:'Device name (shown in Home Assistant)',
     lbl_haprefix:'Home Assistant discovery prefix',
+    lbl_interval:'MQTT update interval (seconds)',
+    hint_interval:'How often data is sent to the MQTT broker. Default: 10s',
     btn_save:'Save and restart',
     credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
   },
@@ -196,25 +209,27 @@ async function load() {
     const res=await fetch(API+'/api/mqtt');
     if(!res.ok) throw new Error('HTTP '+res.status);
     const cfg=await res.json();
-    document.getElementById('broker_host').value = cfg.broker_host || '';
-    document.getElementById('broker_port').value = cfg.broker_port || 1883;
-    document.getElementById('username').value    = cfg.username    || '';
-    document.getElementById('base_topic').value  = cfg.base_topic  || 'curb/power';
-    document.getElementById('device_name').value = cfg.device_name || '';
-    document.getElementById('ha_prefix').value   = cfg.ha_prefix   || 'homeassistant';
+    document.getElementById('broker_host').value      = cfg.broker_host      || '';
+    document.getElementById('broker_port').value      = cfg.broker_port      || 1883;
+    document.getElementById('username').value         = cfg.username         || '';
+    document.getElementById('base_topic').value       = cfg.base_topic       || 'curb/power';
+    document.getElementById('device_name').value      = cfg.device_name      || '';
+    document.getElementById('ha_prefix').value        = cfg.ha_prefix        || 'homeassistant';
+    document.getElementById('publish_interval').value = cfg.publish_interval || 10;
   } catch(e) { toast('mqtt-toast',false,'Could not load config: '+e.message); }
 }
 
 async function saveMqtt() {
   const pwd=document.getElementById('password').value;
   const body={
-    broker_host:  document.getElementById('broker_host').value,
-    broker_port:  parseInt(document.getElementById('broker_port').value)||1883,
-    username:     document.getElementById('username').value,
-    password:     pwd===''?'********':pwd,
-    base_topic:   document.getElementById('base_topic').value,
-    device_name:  document.getElementById('device_name').value,
-    ha_prefix:    document.getElementById('ha_prefix').value,
+    broker_host:      document.getElementById('broker_host').value,
+    broker_port:      parseInt(document.getElementById('broker_port').value)||1883,
+    username:         document.getElementById('username').value,
+    password:         pwd===''?'********':pwd,
+    base_topic:       document.getElementById('base_topic').value,
+    device_name:      document.getElementById('device_name').value,
+    ha_prefix:        document.getElementById('ha_prefix').value,
+    publish_interval: parseInt(document.getElementById('publish_interval').value)||10,
   };
   try {
     const res=await fetch(API+'/api/mqtt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

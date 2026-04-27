@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Statistikk — Curb Energy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922;
+      --g1: #388bfd; --g2: #3fb950; --g3: #d29922;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: var(--bg); color: var(--text); min-height: 100vh;
+           display: flex; flex-direction: column; }
+
+    /* ── Nav ─────────────────────────────────────────────────────────────── */
+    nav { background: var(--surface); border-bottom: 1px solid var(--border);
+          padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; }
+    .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
+    .nav-brand span { color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px;
+              height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent;
+              transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .lang-toggle { display: flex; gap: 3px; }
+    .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted);
+                border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
+    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-right: 5px; }
+    .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a;
+                  padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem;
+                  text-decoration: none; transition: opacity .15s; }
+    .coffee-btn:hover { opacity: 0.85; }
+    .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
+    .kofi-btn:hover { opacity: 0.85; }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    main { max-width: 1100px; margin: 0 auto; padding: 20px 16px; width: 100%; flex: 1; }
+
+    /* ── Summary strip ───────────────────────────────────────────────────── */
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    @media (max-width: 600px) { .summary { grid-template-columns: repeat(2, 1fr); } }
+    .scard { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+    .scard.hi { border-color: rgba(56,139,253,0.35);
+                background: linear-gradient(135deg, rgba(56,139,253,0.14) 0%, rgba(56,139,253,0.04) 100%); }
+    .scard-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase;
+                   letter-spacing: 0.05em; margin-bottom: 4px; }
+    .scard-val { font-size: 1.5rem; font-weight: 600; color: #fff;
+                 font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .scard.hi .scard-val { color: var(--accent); }
+    .scard-unit { font-size: 0.8rem; color: var(--muted); margin-left: 2px; font-weight: 400; }
+    .scard-sub { font-size: 0.70rem; color: var(--muted); margin-top: 3px; }
+
+    /* ── Periode-velger ──────────────────────────────────────────────────── */
+    .period-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .period-label { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+    .period-btns  { display: flex; gap: 4px; }
+    .period-btn { background: none; border: 1px solid var(--border); color: var(--muted);
+                  border-radius: 4px; padding: 3px 12px; font-size: 0.72rem;
+                  cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .period-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .period-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 4-card group grid ───────────────────────────────────────────────── */
+    .group-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 680px) { .group-grid { grid-template-columns: 1fr; } }
+
+    .group-card { background: var(--surface); border: 1px solid var(--border);
+                  border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+    .group-hdr { display: flex; justify-content: space-between; align-items: center;
+                 padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .g1-hdr { background: linear-gradient(90deg, rgba(56,139,253,.22) 0%, rgba(56,139,253,.05) 100%);
+              border-bottom-color: rgba(56,139,253,.28); }
+    .g2-hdr { background: linear-gradient(90deg, rgba(63,185,80,.22)  0%, rgba(63,185,80,.05)  100%);
+              border-bottom-color: rgba(63,185,80,.28); }
+    .g3-hdr { background: linear-gradient(90deg, rgba(210,153,34,.22) 0%, rgba(210,153,34,.05) 100%);
+              border-bottom-color: rgba(210,153,34,.28); }
+    .g4-hdr { background: linear-gradient(90deg, rgba(188,140,255,.18) 0%, rgba(188,140,255,.04) 100%);
+              border-bottom-color: rgba(188,140,255,.22); }
+    .group-name { font-size: 0.78rem; font-weight: 600; color: #e6edf3; }
+    .group-kwh { font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .g1-hdr .group-kwh { color: var(--g1); }
+    .g2-hdr .group-kwh { color: var(--g2); }
+    .g3-hdr .group-kwh { color: var(--g3); }
+    .g4-hdr .group-kwh { color: #bc8cff; }
+
+    /* ── Stolpediagram (boks 4) ──────────────────────────────────────────── */
+    .bar-body { flex: 1; display: flex; flex-direction: column;
+                padding: 12px 14px 8px; gap: 6px; }
+    .bar-sub  { font-size: 0.70rem; color: var(--muted); text-align: center; }
+
+    /* ── Pie body ────────────────────────────────────────────────────────── */
+    .pie-body { display: flex; flex-direction: column; align-items: center;
+                justify-content: center; padding: 14px 16px; flex: 1; gap: 0; }
+    .pie-legend { width: 100%; margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .leg-row { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; }
+    .leg-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+    .leg-name { flex: 1; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .leg-val { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500;
+               white-space: nowrap; min-width: 60px; text-align: right; }
+    .leg-pct { color: var(--muted); width: 34px; text-align: right; font-size: 0.68rem; }
+
+    /* ── Reset / info bar ────────────────────────────────────────────────── */
+    .info-bar { display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
+    .info-note { font-size: 0.70rem; color: var(--muted); }
+
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; font-size: 0.72rem;
+             color: var(--muted); flex-shrink: 0; max-width: 1100px; margin: 0 auto; width: 100%; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
+  <a href="energy.html"       data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html"        data-i18n="nav_stat" class="active">Statistikk</a>
+  <a href="calibration.html"  data-i18n="nav_cal">Kalibrering</a>
+  <a href="settings.html"     data-i18n="nav_set">Innstillinger</a>
+  <a href="sysinfo.html"      data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" data-i18n="nav_ser">Serial / Powerline</a>
+  <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+  <!-- Summary strip (viser alltid i dag) -->
+  <div class="summary">
+    <div class="scard hi">
+      <div class="scard-label" data-i18n="s_total">Totalt i dag</div>
+      <div class="scard-val"><span id="tot-kwh">—</span><span class="scard-unit">kWh</span></div>
+      <div class="scard-sub" id="s-date"></div>
+    </div>
+    <div class="scard">
+      <div class="scard-label" data-i18n="s_g1">Gruppe 1</div>
+      <div class="scard-val" style="color:var(--g1)"><span id="s-g1">—</span><span class="scard-unit">kWh</span></div>
+    </div>
+    <div class="scard">
+      <div class="scard-label" data-i18n="s_g2">Gruppe 2</div>
+      <div class="scard-val" style="color:var(--g2)"><span id="s-g2">—</span><span class="scard-unit">kWh</span></div>
+    </div>
+    <div class="scard">
+      <div class="scard-label" data-i18n="s_g3">Gruppe 3</div>
+      <div class="scard-val" style="color:var(--g3)"><span id="s-g3">—</span><span class="scard-unit">kWh</span></div>
+    </div>
+  </div>
+
+  <!-- Periode-velger for kakediagrammene -->
+  <div class="period-bar">
+    <span class="period-label" data-i18n="period_lbl">Periode (kakediagram):</span>
+    <div class="period-btns">
+      <button class="period-btn active" data-period="day"   data-i18n="period_day"   onclick="setPeriod('day')">Dag</button>
+      <button class="period-btn"        data-period="week"  data-i18n="period_week"  onclick="setPeriod('week')">Uke</button>
+      <button class="period-btn"        data-period="month" data-i18n="period_month" onclick="setPeriod('month')">Mnd</button>
+      <button class="period-btn"        data-period="year"  data-i18n="period_year"  onclick="setPeriod('year')">År</button>
+    </div>
+    <span class="info-note" id="period-note"></span>
+  </div>
+
+  <!-- 4 cards -->
+  <div class="group-grid">
+
+    <div class="group-card">
+      <div class="group-hdr g1-hdr">
+        <span class="group-name" data-i18n="g1_name">Gruppe 1 &mdash; CT 1&ndash;6</span>
+        <span class="group-kwh" id="g1-kwh">— kWh</span>
+      </div>
+      <div class="pie-body">
+        <canvas id="pie1" width="170" height="170"></canvas>
+        <div class="pie-legend" id="leg1"></div>
+      </div>
+    </div>
+
+    <div class="group-card">
+      <div class="group-hdr g2-hdr">
+        <span class="group-name" data-i18n="g2_name">Gruppe 2 &mdash; CT 7&ndash;12</span>
+        <span class="group-kwh" id="g2-kwh">— kWh</span>
+      </div>
+      <div class="pie-body">
+        <canvas id="pie2" width="170" height="170"></canvas>
+        <div class="pie-legend" id="leg2"></div>
+      </div>
+    </div>
+
+    <div class="group-card">
+      <div class="group-hdr g3-hdr">
+        <span class="group-name" data-i18n="g3_name">Gruppe 3 &mdash; CT 13&ndash;18</span>
+        <span class="group-kwh" id="g3-kwh">— kWh</span>
+      </div>
+      <div class="pie-body">
+        <canvas id="pie3" width="170" height="170"></canvas>
+        <div class="pie-legend" id="leg3"></div>
+      </div>
+    </div>
+
+    <div class="group-card">
+      <div class="group-hdr g4-hdr">
+        <span class="group-name" data-i18n="g4_name">Timeforbruk i dag</span>
+        <span class="group-kwh" id="g4-kwh">— kWh</span>
+      </div>
+      <div class="bar-body">
+        <canvas id="barchart" width="320" height="155" style="width:100%;height:auto"></canvas>
+        <div class="bar-sub" id="bar-sub"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="info-bar">
+    <span class="info-note" id="last-update"></span>
+    <span class="info-note" data-i18n="note_accum">Akkumuleres kontinuerlig på enheten. Nullstilles automatisk ved midnatt.</span>
+  </div>
+
+</main>
+
+<footer>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v1.2</span></span>
+</footer>
+
+<script>
+const API = 'http://' + location.hostname + ':8080';
+const NUM = 18;
+const SLICE_COLORS = ['#388bfd','#3fb950','#d29922','#f85149','#bc8cff','#58a6ff'];
+
+// ── i18n ──────────────────────────────────────────────────────────────────────
+let lang = localStorage.getItem('curb_lang') || 'no';
+
+const T = {
+  no: {
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering',
+    nav_set:'Innstillinger', nav_sys:'System', nav_ser:'Serial / Powerline',
+    s_total:'Totalt i dag', s_g1:'Gruppe 1', s_g2:'Gruppe 2', s_g3:'Gruppe 3',
+    g1_name:'Gruppe 1 — CT 1–6', g2_name:'Gruppe 2 — CT 7–12', g3_name:'Gruppe 3 — CT 13–18',
+    g4_name:'Timeforbruk i dag',
+    period_lbl:'Periode (kakediagram):',
+    period_day:'Dag', period_week:'Uke', period_month:'Mnd', period_year:'År',
+    note_accum:'Akkumuleres kontinuerlig på enheten. Nullstilles automatisk ved midnatt.',
+    no_history:'(ingen historikk ennå — tilgjengelig etter første midnatt)',
+    credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
+  },
+  en: {
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration',
+    nav_set:'Settings', nav_sys:'System', nav_ser:'Serial / Powerline',
+    s_total:'Total today', s_g1:'Group 1', s_g2:'Group 2', s_g3:'Group 3',
+    g1_name:'Group 1 — CT 1–6', g2_name:'Group 2 — CT 7–12', g3_name:'Group 3 — CT 13–18',
+    g4_name:'Hourly usage today',
+    period_lbl:'Period (pie charts):',
+    period_day:'Day', period_week:'Week', period_month:'Month', period_year:'Year',
+    note_accum:'Accumulated continuously on the device. Resets automatically at midnight.',
+    no_history:'(no history yet — available after first midnight)',
+    credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
+  },
+};
+
+function applyLang(l) {
+  lang = l; localStorage.setItem('curb_lang', l);
+  const tr = T[l] || T.no;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n; if (tr[k] != null) el.textContent = tr[k];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.lang === l));
+}
+
+// ── Tilstand ──────────────────────────────────────────────────────────────────
+let currentPeriod = 'day';
+let historyData   = null;          // cachet history.json
+let lastKwh       = new Array(NUM).fill(0);
+let lastHours     = new Array(24).fill(0);
+
+// ── Kretsnavn fra kalibreringsfil ─────────────────────────────────────────────
+let names = Array.from({length: NUM}, (_, i) => (lang==='en'?'Circuit ':'Krets ')+(i+1));
+
+async function loadNames() {
+  try {
+    const r = await fetch(API + '/api/calibration');
+    if (!r.ok) return;
+    const cal = await r.json();
+    const n = cal.circuit_names || [];
+    for (let i = 0; i < NUM; i++) { if (n[i]) names[i] = n[i]; }
+  } catch(_) {}
+}
+
+// ── Periode-velger ────────────────────────────────────────────────────────────
+function setPeriod(p) {
+  currentPeriod = p;
+  historyData = null;  // tving ny henting neste gang
+  document.querySelectorAll('.period-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.period === p));
+  refreshPieCharts();
+}
+
+async function loadHistory() {
+  if (historyData) return historyData;
+  try {
+    const r = await fetch('/history.json?_=' + Date.now());
+    if (!r.ok) return null;
+    historyData = await r.json();
+  } catch(_) { return null; }
+  return historyData;
+}
+
+// Returnerer 18-elementer kWh-array for valgt periode
+async function getKwhForPeriod() {
+  if (currentPeriod === 'day') return lastKwh;
+  const h = await loadHistory();
+  if (!h || !Array.isArray(h.days) || h.days.length === 0) return null;
+  const days = h.days;
+  let n;
+  if      (currentPeriod === 'week')  n = 7;
+  else if (currentPeriod === 'month') n = 30;
+  else                                n = days.length;   // year = alle
+  const subset = days.slice(-n);
+  const totals = new Array(18).fill(0);
+  subset.forEach(day => {
+    if (Array.isArray(day.kwh)) {
+      for (let i = 0; i < 18; i++) totals[i] += (day.kwh[i] || 0);
+    }
+  });
+  return totals;
+}
+
+// ── Donut-tegning ─────────────────────────────────────────────────────────────
+function drawDonut(canvasId, values, colors, centerText) {
+  const c = document.getElementById(canvasId);
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height, cx = W/2, cy = H/2;
+  const ro = cx - 6, ri = ro * 0.55;
+  ctx.clearRect(0, 0, W, H);
+  const total = values.reduce((a, b) => a + b, 0);
+  if (total < 0.0001) {
+    ctx.beginPath(); ctx.arc(cx, cy, ro, 0, Math.PI*2);
+    ctx.fillStyle = '#21262d'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, ri, 0, Math.PI*2);
+    ctx.fillStyle = '#161b22'; ctx.fill();
+    ctx.fillStyle = '#8b949e'; ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('—', cx, cy);
+    return;
+  }
+  const gap = 0.025;
+  let angle = -Math.PI / 2;
+  values.forEach((v, i) => {
+    if (v <= 0) return;
+    const sl = v / total * Math.PI * 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, ro, angle + gap, angle + sl - gap);
+    ctx.closePath(); ctx.fillStyle = colors[i]; ctx.fill();
+    angle += sl;
+  });
+  ctx.beginPath(); ctx.arc(cx, cy, ri, 0, Math.PI*2);
+  ctx.fillStyle = '#161b22'; ctx.fill();
+  ctx.fillStyle = '#e6edf3';
+  ctx.font = 'bold 12px -apple-system,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(centerText, cx, cy);
+}
+
+// ── Legende ───────────────────────────────────────────────────────────────────
+function updateLegend(legId, values, colors, offset) {
+  const total = values.reduce((a, b) => a + b, 0);
+  document.getElementById(legId).innerHTML = values.map((v, i) => {
+    const pct = total > 0 ? Math.round(v / total * 100) : 0;
+    let display;
+    if      (v >= 100)  display = v.toFixed(0) + ' kWh';
+    else if (v >= 1)    display = v.toFixed(2) + ' kWh';
+    else if (v >= 0.01) display = v.toFixed(3) + ' kWh';
+    else                display = (v*1000).toFixed(1) + ' Wh';
+    return '<div class="leg-row">' +
+      '<div class="leg-dot" style="background:'+colors[i]+'"></div>' +
+      '<span class="leg-name">'+names[offset + i]+'</span>' +
+      '<span class="leg-val">'+display+'</span>' +
+      '<span class="leg-pct">'+pct+'%</span>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Stolpediagram (alltid i dag) ──────────────────────────────────────────────
+function drawBarChart(hours) {
+  const c = document.getElementById('barchart');
+  const rect = c.getBoundingClientRect();
+  if (rect.width > 0) { c.width = rect.width * devicePixelRatio; c.height = 155 * devicePixelRatio; }
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const dpr = devicePixelRatio || 1;
+  ctx.clearRect(0, 0, W, H);
+
+  const now_h = new Date().getHours();
+  const max   = Math.max(...hours, 0.0001);
+  const pl = 34*dpr, pr = 6*dpr, pt = 14*dpr, pb = 20*dpr;
+  const cw = W - pl - pr, ch = H - pt - pb;
+  const bw = cw / 24;
+
+  ctx.strokeStyle = '#21262d'; ctx.lineWidth = dpr;
+  for (let i = 1; i <= 4; i++) {
+    const y = pt + ch - (i / 4) * ch;
+    ctx.beginPath(); ctx.moveTo(pl, y); ctx.lineTo(W - pr, y); ctx.stroke();
+  }
+
+  hours.forEach((v, i) => {
+    const x  = pl + i * bw;
+    const bh = Math.max(v > 0 ? 2*dpr : 0, (v / max) * ch);
+    const y  = pt + ch - bh;
+    if (i === now_h)     ctx.fillStyle = '#bc8cff';
+    else if (i < now_h)  ctx.fillStyle = '#7c51c8';
+    else                 ctx.fillStyle = '#21262d';
+    ctx.fillRect(x + dpr, y, bw - 2*dpr, bh);
+  });
+
+  ctx.fillStyle = '#8b949e';
+  ctx.font = (9*dpr) + 'px sans-serif';
+  ctx.textAlign = 'center';
+  for (let i = 0; i < 24; i += 3) {
+    ctx.fillText(String(i).padStart(2,'0'), pl + i*bw + bw/2, H - 4*dpr);
+  }
+
+  ctx.textAlign = 'right';
+  const maxLbl = max >= 0.1 ? max.toFixed(2) : (max*1000).toFixed(0)+'W';
+  ctx.fillText(maxLbl + ' kWh', pl - 3*dpr, pt + 9*dpr);
+}
+
+// ── Formatering ───────────────────────────────────────────────────────────────
+function fmtKwh(v) {
+  if (v >= 1000) return v.toFixed(0) + ' kWh';
+  if (v >= 100)  return v.toFixed(1) + ' kWh';
+  if (v >= 1)    return v.toFixed(2) + ' kWh';
+  if (v >= 0.01) return v.toFixed(3) + ' kWh';
+  return (v*1000).toFixed(1) + ' Wh';
+}
+function fmtKwhShort(v) {
+  if (v >= 1000) return v.toFixed(0);
+  if (v >= 100)  return v.toFixed(1);
+  if (v >= 1)    return v.toFixed(2);
+  if (v >= 0.01) return v.toFixed(3);
+  return (v*1000).toFixed(0) + ' Wh';
+}
+function centerFmt(v) {
+  if (v >= 1000) return v.toFixed(0) + '\nkWh';
+  if (v >= 100)  return v.toFixed(1) + ' kWh';
+  if (v >= 1)    return v.toFixed(2) + ' kWh';
+  if (v >= 0.01) return v.toFixed(3) + ' kWh';
+  return (v*1000).toFixed(0) + ' Wh';
+}
+
+// ── Oppdater summary strip (alltid i dag) ─────────────────────────────────────
+function updateSummary(kwh) {
+  const gkwh = [
+    kwh.slice(0,6).reduce((a,b)=>a+b,0),
+    kwh.slice(6,12).reduce((a,b)=>a+b,0),
+    kwh.slice(12,18).reduce((a,b)=>a+b,0),
+  ];
+  const totKwh = gkwh.reduce((a,b)=>a+b,0);
+  document.getElementById('tot-kwh').textContent = totKwh >= 0.01 ? fmtKwhShort(totKwh) : '0.000';
+  document.getElementById('s-g1').textContent = fmtKwhShort(gkwh[0]);
+  document.getElementById('s-g2').textContent = fmtKwhShort(gkwh[1]);
+  document.getElementById('s-g3').textContent = fmtKwhShort(gkwh[2]);
+  const d = new Date();
+  document.getElementById('s-date').textContent =
+    d.toLocaleDateString(lang==='no'?'nb-NO':'en-GB', {weekday:'short',day:'numeric',month:'short'});
+}
+
+// ── Oppdater stolpediagram + boks-4-header (alltid i dag) ─────────────────────
+function updateBarToday() {
+  const hours = lastHours;
+  if (!hours || hours.length < 24) return;
+  drawBarChart(hours);
+  const now_h = new Date().getHours();
+  const totKwh = lastKwh.reduce((a,b)=>a+b,0);
+  document.getElementById('g4-kwh').textContent = fmtKwh(totKwh);
+  document.getElementById('bar-sub').textContent =
+    (lang==='no' ? 'Nå (' : 'Now (') + String(now_h).padStart(2,'0') +
+    ':00): ' + fmtKwh(hours[now_h]);
+}
+
+// ── Oppdater kakediagram for valgt periode ────────────────────────────────────
+function updatePieCharts(kwh) {
+  const gkwh = [
+    kwh.slice(0,6).reduce((a,b)=>a+b,0),
+    kwh.slice(6,12).reduce((a,b)=>a+b,0),
+    kwh.slice(12,18).reduce((a,b)=>a+b,0),
+  ];
+  document.getElementById('g1-kwh').textContent = fmtKwh(gkwh[0]);
+  document.getElementById('g2-kwh').textContent = fmtKwh(gkwh[1]);
+  document.getElementById('g3-kwh').textContent = fmtKwh(gkwh[2]);
+  [[0,'pie1','leg1'],[1,'pie2','leg2'],[2,'pie3','leg3']].forEach(([gi, pid, lid]) => {
+    const vals = kwh.slice(gi*6, gi*6+6);
+    drawDonut(pid, vals, SLICE_COLORS, centerFmt(gkwh[gi]));
+    updateLegend(lid, vals, SLICE_COLORS, gi*6);
+  });
+}
+
+async function refreshPieCharts() {
+  const kwh = await getKwhForPeriod();
+  const tr = T[lang] || T.no;
+  const note = document.getElementById('period-note');
+  if (!kwh) {
+    note.textContent = tr.no_history || '';
+    // Tegn tomme kakediagrammer
+    updatePieCharts(new Array(NUM).fill(0));
+    document.getElementById('g1-kwh').textContent = '—';
+    document.getElementById('g2-kwh').textContent = '—';
+    document.getElementById('g3-kwh').textContent = '—';
+    return;
+  }
+  note.textContent = '';
+  updatePieCharts(kwh);
+}
+
+// ── Poll — henter daily.json direkte fra lighttpd (port 80) ───────────────────
+async function poll() {
+  try {
+    const r = await fetch('/daily.json?_=' + Date.now());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    lastKwh   = Array.isArray(d.kwh)   ? d.kwh   : new Array(NUM).fill(0);
+    lastHours = Array.isArray(d.hours) ? d.hours : new Array(24).fill(0);
+    while (lastKwh.length   < NUM) lastKwh.push(0);
+    while (lastHours.length < 24)  lastHours.push(0);
+
+    updateSummary(lastKwh);
+    updateBarToday();
+    await refreshPieCharts();
+
+    document.getElementById('last-update').textContent =
+      new Date().toLocaleTimeString();
+  } catch(e) {
+    document.getElementById('last-update').textContent = 'Ingen data';
+  }
+}
+
+// Oppdater umiddelbart når fanen blir aktiv igjen
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') poll();
+});
+
+applyLang(lang);
+loadNames().then(() => poll());
+setInterval(poll, 15000);
+</script>
+</body>
+</html>

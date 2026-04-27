@@ -53,54 +53,59 @@ echo ""
 # ── SSH setup ─────────────────────────────────────────────────────────────────
 # Use sshpass if available (one password prompt) -- falls back to plain ssh (many prompts)
 step "SSH authentication..."
-echo -e "  Leave password empty and press Enter to use an SSH key."
-echo ""
-read -s -p "  SSH password for root@$CURB_IP (empty = use key): " SSH_PASS
-echo ""
 
-SSH_BASE="ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR"
+# Curb kjoerer gammel Dropbear som kun stoetter rsa/dss.
+# PubkeyAcceptedAlgorithms=+ssh-rsa trengs fordi moderne OpenSSH
+# tilbyr rsa-sha2-256/512 som Dropbear ikke forstaar.
+CURB_KEY="${CURB_KEY:-$HOME/.ssh/id_rsa_curb}"
 
-if [ -n "$SSH_PASS" ]; then
-  if command -v sshpass &>/dev/null; then
-    ok "sshpass found -- password reused automatically for all steps"
-    SSH="sshpass -p $SSH_PASS $SSH_BASE"
-  else
-    warn "sshpass not installed -- you will be prompted for password ~10 times"
-    warn "Fix: download sshpass.exe -> C:\\Program Files\\Git\\usr\\bin\\"
-    warn "  or run: ssh-keygen -t ed25519 -f ~/.ssh/curb_key -N \"\""
-    warn "          ssh-copy-id -i ~/.ssh/curb_key.pub root@$CURB_IP"
-    SSH="$SSH_BASE"
-  fi
-else
-  ok "Using SSH key"
-  SSH="$SSH_BASE"
+SSH_BASE="ssh \
+  -i $CURB_KEY \
+  -o PubkeyAcceptedAlgorithms=+ssh-rsa \
+  -o ConnectTimeout=10 \
+  -o ServerAliveInterval=15 \
+  -o ServerAliveCountMax=3 \
+  -o StrictHostKeyChecking=accept-new \
+  -o PasswordAuthentication=no \
+  -o BatchMode=yes \
+  -o LogLevel=ERROR"
+
+SSH="$SSH_BASE"
+
+if [ ! -f "$CURB_KEY" ]; then
+  err "SSH-nøkkel ikke funnet: $CURB_KEY
+        Generer med: ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa_curb -N ''
+        Installer med: ssh-copy-id -i ~/.ssh/id_rsa_curb.pub root@$CURB_IP"
 fi
+ok "Bruker SSH-nøkkel: $CURB_KEY"
 
 step "Testing connection to root@$CURB_IP..."
-dbg "SSH: $SSH root@$CURB_IP echo ok"
-if ! $SSH root@"$CURB_IP" "echo ok"; then
-  err "Connection to root@$CURB_IP failed.
-        Check:
-          1. Correct IP address (ping $CURB_IP)
-          2. Curb device is on the network
-          3. Correct password / SSH key installed"
+if ! $SSH root@"$CURB_IP" "echo ok" 2>/dev/null; then
+  err "Tilkobling til root@$CURB_IP feilet.
+        Sjekk:
+          1. Riktig IP-adresse (ping $CURB_IP)
+          2. Curb er på nettverket
+          3. Nøkkel installert på Curb: ssh-copy-id -i $CURB_KEY.pub root@$CURB_IP"
 fi
-ok "Connected to $CURB_IP"
+ok "Koblet til $CURB_IP"
 
 # ── Helper functions ──────────────────────────────────────────────────────────
+# remote_timeout: wrapper med 60s maks for kommandoer som kan henge
+# (f.eks. filoperasjoner på UBIFS under stress)
 remote() {
   dbg "remote: $*"
-  $SSH root@"$CURB_IP" "$@"
+  timeout 60 $SSH root@"$CURB_IP" "$@"
   local rc=$?
-  [ $rc -ne 0 ] && echo -e "  ${RED}[!]${NC} remote failed (exit $rc): $*" >&2
+  [ $rc -eq 124 ] && echo -e "  ${RED}[TIMEOUT]${NC} Kommando hang i 60s: $*" >&2
+  [ $rc -ne 0 ] && echo -e "  ${RED}[!]${NC} remote feilet (exit $rc): $*" >&2
   return $rc
 }
 
 upload() {
   local src="$1" dst="$2"
   dbg "upload: $src -> $dst"
-  cat "$src" | $SSH root@"$CURB_IP" "cat > $dst" \
-    || err "Upload failed: $(basename "$src") -> $dst"
+  timeout 30 $SSH root@"$CURB_IP" "cat > $dst" < "$src" \
+    || err "Upload feilet: $(basename "$src") -> $dst"
   ok "$(basename "$src") -> $dst"
 }
 
@@ -114,7 +119,9 @@ for f in \
     "$SCRIPT_DIR/webserver/energy.html" \
     "$SCRIPT_DIR/webserver/settings.html" \
     "$SCRIPT_DIR/webserver/calibration.html" \
-    "$SCRIPT_DIR/webserver/sysinfo.html"; do
+    "$SCRIPT_DIR/webserver/sysinfo.html" \
+    "$SCRIPT_DIR/webserver/serial-guide.html" \
+    "$SCRIPT_DIR/webserver/stats.html"; do
   if [ -f "$f" ]; then
     ok "$(basename "$f")"
   else
@@ -150,7 +157,7 @@ ok "Permissions set"
 # ── Web pages ─────────────────────────────────────────────────────────────────
 step "Uploading web pages..."
 remote "mkdir -p /data/sd/www /tmp/www"
-for page in energy.html settings.html calibration.html sysinfo.html; do
+for page in energy.html stats.html settings.html calibration.html sysinfo.html serial-guide.html; do
   if [ -f "$SCRIPT_DIR/webserver/$page" ]; then
     upload "$SCRIPT_DIR/webserver/$page" "/data/sd/www/$page"
     remote "cp /data/sd/www/$page /tmp/www/$page && chmod 644 /tmp/www/$page"
@@ -166,23 +173,29 @@ if [ "$HAS_MQTT" = "yes" ]; then
   info "Edit via http://$CURB_IP/settings.html after installation"
 else
   echo ""
-  echo -e "  ${YELLOW}MQTT broker not configured. Please fill in:${NC}"
+  echo -e "  ${YELLOW}MQTT broker not configured.${NC}"
+  echo -e "  You can configure it now, or skip and use the web interface later:"
+  echo -e "  ${CYAN}http://$CURB_IP/settings.html${NC}"
   echo ""
-  read -p "    Broker address  [10.0.0.49]:          " BROKER_HOST
-  BROKER_HOST="${BROKER_HOST:-10.0.0.49}"
-  read -p "    Port            [1883]:                " BROKER_PORT
-  BROKER_PORT="${BROKER_PORT:-1883}"
-  read -p "    Username        [mqtt_user]:           " MQTT_USER
-  MQTT_USER="${MQTT_USER:-mqtt_user}"
-  read -s -p "    Password:                              " MQTT_PASS; echo ""
-  read -p "    Base topic      [curb/power]:          " BASE_TOPIC
-  BASE_TOPIC="${BASE_TOPIC:-curb/power}"
-  read -p "    Device name     [Curb Energy Monitor]: " DEV_NAME
-  DEV_NAME="${DEV_NAME:-Curb Energy Monitor}"
+  read -p "  Configure MQTT now? [Y/n]: " CONF_MQTT
+  CONF_MQTT="${CONF_MQTT:-Y}"
+  if [[ "$CONF_MQTT" =~ ^[Yy] ]]; then
+    echo ""
+    read -p "    Broker address  [10.0.0.49]:          " BROKER_HOST
+    BROKER_HOST="${BROKER_HOST:-10.0.0.49}"
+    read -p "    Port            [1883]:                " BROKER_PORT
+    BROKER_PORT="${BROKER_PORT:-1883}"
+    read -p "    Username        [mqtt_user]:           " MQTT_USER
+    MQTT_USER="${MQTT_USER:-mqtt_user}"
+    read -s -p "    Password:                              " MQTT_PASS; echo ""
+    read -p "    Base topic      [curb/power]:          " BASE_TOPIC
+    BASE_TOPIC="${BASE_TOPIC:-curb/power}"
+    read -p "    Device name     [Curb Energy Monitor]: " DEV_NAME
+    DEV_NAME="${DEV_NAME:-Curb Energy Monitor}"
 
-  MQTT_PASS_ESC=$(printf '%s' "$MQTT_PASS" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    MQTT_PASS_ESC=$(printf '%s' "$MQTT_PASS" | sed 's/\\/\\\\/g; s/"/\\"/g')
 
-  $SSH root@"$CURB_IP" "cat > /data/mqtt-config.json" << EOF
+    $SSH root@"$CURB_IP" "cat > /data/mqtt-config.json" << EOF
 {
   "broker_host":  "$BROKER_HOST",
   "broker_port":  $BROKER_PORT,
@@ -193,8 +206,11 @@ else
   "device_name":  "$DEV_NAME"
 }
 EOF
-  remote "chmod 600 /data/mqtt-config.json"
-  ok "mqtt-config.json created (chmod 600)"
+    remote "chmod 600 /data/mqtt-config.json"
+    ok "mqtt-config.json created (chmod 600)"
+  else
+    warn "MQTT not configured -- edit via http://$CURB_IP/settings.html after installation"
+  fi
 fi
 
 # ── Calibration file ──────────────────────────────────────────────────────────
@@ -251,6 +267,8 @@ add_copy energy.html
 add_copy settings.html
 add_copy calibration.html
 add_copy sysinfo.html
+add_copy serial-guide.html
+add_copy stats.html
 REMOTE_SH
 ok "curb_status.sh done"
 
@@ -308,6 +326,8 @@ echo -e "    ${CYAN}http://$CURB_IP/energy.html${NC}       <- Dashboard"
 echo -e "    ${CYAN}http://$CURB_IP/calibration.html${NC}  <- Calibration"
 echo -e "    ${CYAN}http://$CURB_IP/settings.html${NC}     <- MQTT settings"
 echo -e "    ${CYAN}http://$CURB_IP/sysinfo.html${NC}      <- System info"
+echo -e "    ${CYAN}http://$CURB_IP/stats.html${NC}        <- Statistikk"
+echo -e "    ${CYAN}http://$CURB_IP/serial-guide.html${NC} <- Serial & Powerline guide"
 echo ""
 echo -e "  ${BOLD}Backup:${NC} $BACKUP_DIR (on Curb device)"
 echo -e "  ${BOLD}Log:${NC}    $LOG_FILE"

@@ -1,5 +1,5 @@
 #!/usr/bin/env lua
--- api-server.lua  v1.0
+-- api-server.lua  v1.2
 -- Minimal HTTP API-server for Curb web-grensesnitt (port 8080).
 -- Styres av hm (health monitor) fra /data/lamarr/
 --
@@ -21,9 +21,10 @@ local fileLog = require('logging.rolling_file')
 
 local logger = fileLog('/var/log/api-server.log', 256 * 1024, 2)
 logger:setLevel(logging.INFO)
-logger:info('api-server v1.0 starting on port 8080')
+logger:info('api-server v1.2 starting on port 8080')
 
 -- ── Filer ─────────────────────────────────────────────────────────────────────
+local WEB_VERSION = 'v1.2'
 local CAL_FILE    = '/data/calibration.json'
 local MQTT_FILE   = '/data/mqtt-config.json'
 local DATA_FILE   = '/tmp/www/latest.json'
@@ -46,10 +47,33 @@ local function write_file(path, content)
   return true
 end
 
+-- Finn PID ved aa lese /proc/PID/cmdline direkte -- ingen shell-spawn, ingen heng-risiko.
+-- cmdline er null-separert, men string.find fungerer likevel paa substrings.
+local function find_pid(name)
+  for pid = 1, 32768 do
+    local f = io.open('/proc/' .. pid .. '/cmdline', 'r')
+    if f then
+      local cmd = f:read('*all'); f:close()
+      if cmd:find(name, 1, true) and cmd:find('lua', 1, true) then
+        return pid
+      end
+    end
+  end
+  return nil
+end
+
+local function proc_running(name)
+  return find_pid(name) ~= nil
+end
+
 local function restart_streamer()
-  -- Finn PID og send SIGTERM; hm respawner automatisk
-  os.execute("kill $(ps | grep '" .. STREAMER .. "' | grep lua | sed 's/^ *//' | cut -d' ' -f1) 2>/dev/null")
-  logger:info('Sendt restart til %s', STREAMER)
+  local pid = find_pid(STREAMER)
+  if pid then
+    os.execute('kill ' .. pid)   -- enkelt kill, ingen pipeline
+    logger:info('Sendt SIGTERM til %s (PID %d), hm respawner', STREAMER, pid)
+  else
+    logger:warn('restart_streamer: fant ikke prosess %s', STREAMER)
+  end
 end
 
 -- ── HTTP hjelpere ─────────────────────────────────────────────────────────────
@@ -79,7 +103,7 @@ end
 
 -- ── Request parser ────────────────────────────────────────────────────────────
 local function parse_request(client)
-  client:settimeout(5)
+  client:settimeout(2)   -- 2s maks per receive -- begrenser freeze ved treg/hengende klient
   local line, err = client:receive('*l')
   if not line then return nil end
 
@@ -221,11 +245,6 @@ local function handle_get_status(client)
     load1 = tonumber(load1); load5 = tonumber(load5); load15 = tonumber(load15)
   end
 
-  -- Prosessstatus
-  local function proc_running(name)
-    return os.execute("ps | grep '" .. name .. "' | grep lua | grep -v grep > /dev/null 2>&1") == 0
-  end
-
   json_ok(client, {
     uptime_secs      = uptime_secs,
     data_age_secs    = data_age,
@@ -237,6 +256,8 @@ local function handle_get_status(client)
     load_1m          = load1,
     load_5m          = load5,
     load_15m         = load15,
+    web_version      = WEB_VERSION,
+    lua_version      = jit and jit.version or _VERSION,
   })
 end
 

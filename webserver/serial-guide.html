@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Curb — Serial &amp; Powerline guide</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
+      --green: #3fb950; --yellow: #d29922; --red: #f85149;
+      --orange: #e3661a; --code-bg: #0d1117;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: var(--bg); color: var(--text); min-height: 100vh;
+           display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border);
+          padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; }
+    .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
+    .nav-brand span { color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px;
+              height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent;
+              transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .lang-toggle { display: flex; gap: 3px; }
+    .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
+    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-right: 5px; }
+    .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
+    .coffee-btn:hover { opacity: 0.85; }
+    .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
+    .kofi-btn:hover { opacity: 0.85; }
+
+    main { max-width: 900px; margin: 0 auto; padding: 28px 16px; width: 100%; flex: 1; }
+
+    h1 { font-size: 1.15rem; font-weight: 600; color: #fff; margin-bottom: 24px; }
+    .section { background: var(--surface); border: 1px solid var(--border);
+               border-radius: 8px; padding: 22px; margin-bottom: 20px; }
+    h2 { font-size: 0.90rem; font-weight: 600; color: #fff; margin-bottom: 16px;
+         padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex;
+         align-items: center; gap: 8px; }
+    h3 { font-size: 0.82rem; font-weight: 600; color: var(--accent); margin: 16px 0 8px; }
+    p  { font-size: 0.85rem; color: var(--text); line-height: 1.6; margin-bottom: 10px; }
+    p:last-child { margin-bottom: 0; }
+
+    code { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.82rem;
+           background: var(--code-bg); border: 1px solid var(--border);
+           border-radius: 4px; padding: 1px 5px; color: var(--green); }
+    pre  { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.80rem;
+           background: var(--code-bg); border: 1px solid var(--border);
+           border-radius: 6px; padding: 14px; overflow-x: auto; line-height: 1.55;
+           margin: 10px 0; color: var(--green); }
+    pre .c  { color: var(--muted); }
+    pre .k  { color: var(--accent); }
+    pre .s  { color: var(--yellow); }
+
+    ol, ul { padding-left: 1.4em; font-size: 0.85rem; line-height: 1.7; }
+    ol li, ul li { margin-bottom: 4px; }
+
+    .warn { background: #2d1f00; border: 1px solid var(--yellow); border-radius: 6px;
+            padding: 10px 14px; font-size: 0.82rem; color: var(--yellow); margin: 12px 0; }
+    .tip  { background: #0d1f0d; border: 1px solid var(--green); border-radius: 6px;
+            padding: 10px 14px; font-size: 0.82rem; color: var(--green); margin: 12px 0; }
+
+    /* ── J6 pinout diagram ──────────────────────────────────────────────── */
+    .pinout-wrap { overflow-x: auto; margin: 14px 0; }
+    .pinout { display: inline-flex; flex-direction: column; gap: 0; font-family: monospace; font-size: 0.82rem; }
+    .pin-row { display: flex; align-items: center; gap: 0; }
+    .pin-num  { width: 22px; text-align: right; color: var(--muted); padding-right: 6px; font-size: 0.75rem; }
+    .pin-box  { width: 52px; height: 32px; border: 1px solid var(--border); display: flex;
+                align-items: center; justify-content: center; font-weight: 600; font-size: 0.78rem; }
+    .pin-box.sq { border-radius: 2px; border-color: var(--accent); }  /* pin 1 square pad */
+    .pin-box.rd { border-radius: 50%; }
+    .pin-label { padding-left: 10px; font-size: 0.82rem; }
+    .pin-label em { color: var(--muted); font-style: normal; font-size: 0.75rem; margin-left: 6px; }
+
+    /* FTDI wire colours */
+    .blk { color: #aaa;     border-color: #aaa !important; }
+    .brn { color: #a0522d;  border-color: #a0522d !important; }
+    .red { color: var(--red); border-color: var(--red) !important; }
+    .org { color: var(--orange); border-color: var(--orange) !important; }
+    .yel { color: var(--yellow); border-color: var(--yellow) !important; }
+    .grn { color: var(--green); border-color: var(--green) !important; }
+
+    .connector-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px;
+                       letter-spacing: 0.05em; text-transform: uppercase; }
+    .pin-orient { font-size: 0.72rem; color: var(--muted); margin-top: 6px; }
+
+    /* step numbers */
+    .steps { counter-reset: step; list-style: none; padding: 0; }
+    .steps li { counter-increment: step; display: flex; gap: 12px; margin-bottom: 12px;
+                font-size: 0.85rem; line-height: 1.6; align-items: flex-start; }
+    .steps li::before { content: counter(step); min-width: 22px; height: 22px;
+                        background: var(--accent); color: #fff; border-radius: 50%;
+                        display: flex; align-items: center; justify-content: center;
+                        font-size: 0.72rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+    footer { border-top: 1px solid var(--border); padding: 12px 20px;
+             font-size: 0.72rem; color: var(--muted); flex-shrink: 0;
+             max-width: 900px; margin: 0 auto; width: 100%; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
+  <a href="energy.html" data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html" data-i18n="nav_stat">Statistikk</a>
+  <a href="calibration.html" data-i18n="nav_cal">Kalibrering</a>
+  <a href="settings.html" data-i18n="nav_set">Innstillinger</a>
+  <a href="sysinfo.html" data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" class="active" data-i18n="nav_ser">Serial / Powerline</a>
+  <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+<h1 data-i18n="page_title">&#128268; Serial-konsoll &amp; Powerline-paring</h1>
+
+<!-- ══════════════════════════════════════════════════════════════
+     J6 PINOUT
+══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 data-i18n="j6_title">&#128204; J6 — FTDI serial-konsoll</h2>
+
+  <p data-i18n="j6_desc">J6 er en 6-pinners 2.54 mm header på Curb-kortet, merket <strong>J6</strong>.
+     Brukes til serial-konsoll når SSH ikke er tilgjengelig — f.eks. ved boot-problemer
+     eller før nettverksoppsett. Spenningsnivå: <strong>3.3V</strong>.</p>
+
+  <img src="j6_pinout_2.jpg" alt="J6 pinout foto"
+       style="max-width:100%;border-radius:6px;border:1px solid var(--border);margin:12px 0;display:block;">
+
+  <div class="warn" data-i18n="j6_warn">&#9888; J6 har ingen VCC-pin — Curb strømsettes separat via vanlig strømkabel.
+  Koble kun GND (pin 6), TX (pin 2) og RX (pin 3).</div>
+
+  <h3 data-i18n="j6_pinout_title">Pinout — empirisk verifisert (pin 6 = firkantet pad = GND)</h3>
+
+  <div class="pinout-wrap">
+    <div class="pinout">
+      <div class="connector-label">J6 header &nbsp;→&nbsp; USB-serial adapter</div>
+      <div class="pin-row">
+        <div class="pin-num">1</div>
+        <div class="pin-box rd" style="color:var(--muted);border-color:var(--muted);">NC</div>
+        <div class="pin-label" style="color:var(--muted);">Ikke tilkoblet</div>
+      </div>
+      <div class="pin-row">
+        <div class="pin-num">2</div>
+        <div class="pin-box rd yel">TX</div>
+        <div class="pin-label">TX — Curb sender <em>→ koble til RX på adapteren ← koble til</em></div>
+      </div>
+      <div class="pin-row">
+        <div class="pin-num">3</div>
+        <div class="pin-box rd grn">RX</div>
+        <div class="pin-label">RX — Curb mottar <em>→ koble til TX på adapteren ← koble til</em></div>
+      </div>
+      <div class="pin-row">
+        <div class="pin-num">4</div>
+        <div class="pin-box rd" style="color:var(--muted);border-color:var(--muted);">NC</div>
+        <div class="pin-label" style="color:var(--muted);">Ikke tilkoblet</div>
+      </div>
+      <div class="pin-row">
+        <div class="pin-num">5</div>
+        <div class="pin-box rd" style="color:var(--muted);border-color:var(--muted);">NC</div>
+        <div class="pin-label" style="color:var(--muted);">Ikke tilkoblet</div>
+      </div>
+      <div class="pin-row">
+        <div class="pin-num">6</div>
+        <div class="pin-box sq blk">GND</div>
+        <div class="pin-label">GND <em>— firkantet pad ← koble til</em></div>
+      </div>
+      <div class="pin-orient">Pin 6 (GND) = firkantet loddepad. Pinout empirisk verifisert med multimeter.</div>
+    </div>
+  </div>
+
+  <h3 data-i18n="serial_settings">Serial-innstillinger</h3>
+  <p><code>115200 baud &nbsp;·&nbsp; 8N1 &nbsp;·&nbsp; ingen flow control &nbsp;·&nbsp; 3.3V logikk</code></p>
+  <p><span data-i18n="serial_login">Login:</span> <code>root</code> &nbsp;/&nbsp; <code>curb123</code></p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     CHROME SERIAL MONITOR
+══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 data-i18n="chrome_title">&#127760; Chrome Web Serial Monitor</h2>
+
+  <p data-i18n="chrome_desc">Chrome har innebygget serial-terminal via Web Serial API — ingen installasjon nødvendig.</p>
+
+  <div class="tip" data-i18n="chrome_tip">&#10003; Krever Chrome 89 eller nyere. Fungerer ikke i Firefox eller Safari.</div>
+
+  <h3 data-i18n="chrome_connect">Koble til</h3>
+  <ol class="steps">
+    <li>Koble FTDI-adapteren til USB (GND + TX + RX som vist over). Curb kan ha strøm fra vanlig strømkabel.</li>
+    <li>Åpne Chrome og gå til:
+      <pre>https://googlechromelabs.github.io/serial-terminal/</pre>
+      <em style="font-size:0.78rem;color:var(--muted)">Alternativt: Arduino Serial Monitor eller hvilken som helst side som bruker Web Serial API.</em>
+    </li>
+    <li>Klikk <strong>Connect</strong> → velg FTDI-porten i listen (f.eks. <em>USB Serial Device (COM3)</em> på Windows).</li>
+    <li>Sett baud rate til <code>115200</code>, data bits <code>8</code>, stop bits <code>1</code>, parity <code>None</code>, flow control <code>None</code>.</li>
+    <li>Klikk <strong>Connect</strong> igjen. Trykk Enter — du skal se login-prompt fra Curb.</li>
+    <li>Logg inn: <code>root</code> → Enter → <code>curb123</code> → Enter.</li>
+  </ol>
+
+  <h3 data-i18n="chrome_tips">Tips</h3>
+  <ul>
+    <li>Reboot Curb mens terminalen er åpen for å se full boot-sekvens.</li>
+    <li>Trykk Enter et par ganger om ingen prompt vises — getty kan ha missett første karbonretur.</li>
+    <li>For å redusere støy i loggen: <code>dmesg -n 1</code> etter innlogging.</li>
+    <li>For å skjule ekkoing av tastetrykkene: <code>stty -echo</code></li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     POWERLINE PARING
+══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 data-i18n="pl_title">&#128268; Powerline-paring (Curb &#8596; HomePlug AV-adapter)</h2>
+
+  <p data-i18n="pl_desc">Manuell paring av Curb sin innebygde QCA7000 powerline-modem (<code>eth1</code>) mot en
+  Curb-merket 600 Mbps HomePlug AV-adapter når midt-LED på adapteren er av (= ikke parret).</p>
+
+  <div class="warn" data-i18n="pl_warn">&#9888; Adapter og Curb må være på samme elektriske krets. Begynn med samme
+  stikkontakt for testing — kretsbrytere og faser kan blokkere powerline-signalet.</div>
+
+  <h3 data-i18n="pl_need">Du trenger</h3>
+  <ul>
+    <li>SSH eller serial-tilgang til Curb</li>
+    <li>Adapterens <strong>HWWC-kode</strong> (Device Password) — på baksiden, format: <code>HWWC-XXXX-XXXX-XXXX</code></li>
+    <li>Adapterens <strong>MAC-adresse</strong> — også på label, format: <code>XX:XX:XX:XX:XX:XX</code></li>
+  </ul>
+
+  <h3>Steg 1 — Finn Curb sin QCA7000 MAC</h3>
+  <pre>plcdevs</pre>
+  <p>Output eksempel:</p>
+  <pre> eth1 00:08:ED:13:2C:45 192.168.050.050 QCA7000 MAC-QCA7000-1.1.0.730-...</pre>
+  <p>Noter MAC-adressen (her: <code>00:08:ED:13:2C:45</code>).</p>
+
+  <h3>Steg 2 — Generer nøkler</h3>
+  <pre><span class="c"># DAK fra adapterens HWWC-passord</span>
+hpavkey -D HWWC-XXXX-XXXX-XXXX
+
+<span class="c"># NMK fra valgfri streng — velg noe du husker</span>
+hpavkey -M MITTNETTKEY123</pre>
+  <p>Begge kommandoer gir 32 hex-tegn. Eksempel:</p>
+  <ul>
+    <li>DAK: <code>48EF3AFBCFB72CAB467BB1FAB3D38114</code></li>
+    <li>NMK: <code>3581A85F9F0C734CBF8FD4D55F567AB7</code></li>
+  </ul>
+
+  <h3>Steg 3 — Sett NMK lokalt på Curb</h3>
+  <pre>int6k -i eth1 -K &lt;NMK&gt; -M &lt;CURB_MAC&gt;</pre>
+  <p>Eksempel:</p>
+  <pre>int6k -i eth1 -K 3581A85F9F0C734CBF8FD4D55F567AB7 -M 00:08:ED:13:2C:45</pre>
+  <p>Forventet output: <code>eth1 00:08:ED:13:2C:45 Set Local Network Membership Key</code></p>
+
+  <h3>Steg 4 — Sett NMK remote på adapter (via DAK)</h3>
+  <pre>int6k -i eth1 \
+  -D &lt;DAK&gt; \
+  -K &lt;NMK&gt; \
+  -J &lt;ADAPTER_MAC&gt; \
+  &lt;CURB_MAC&gt;</pre>
+  <p>Eksempel:</p>
+  <pre>int6k -i eth1 \
+  -D 48EF3AFBCFB72CAB467BB1FAB3D38114 \
+  -K 3581A85F9F0C734CBF8FD4D55F567AB7 \
+  -J 7C:8B:CA:AE:2A:AA \
+  00:08:ED:13:2C:45</pre>
+  <p>Forventet output: <code>eth1 00:08:ED:13:2C:45 Set Remote Network Membership Key</code></p>
+
+  <h3>Steg 5 — Verifiser</h3>
+  <pre>int6klist &lt;CURB_MAC&gt;</pre>
+  <p>Skal vise begge MAC-er. Midt-LED på adapteren skal lyse.</p>
+
+  <h3>Steg 6 — Hent IP via DHCP</h3>
+  <pre>udhcpc -i eth1</pre>
+
+  <h3 data-i18n="pl_trouble">Feilsøking</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin-top:8px;">
+    <thead>
+      <tr style="border-bottom:1px solid var(--border);">
+        <th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:500;">Symptom</th>
+        <th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:500;">Sannsynlig årsak</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:6px 10px;"><code>int6klist</code> viser kun lokal MAC</td>
+        <td style="padding:6px 10px;">NMK ikke lik på begge sider — gjenta steg 3 og 4</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:6px 10px;">Midt-LED av</td>
+        <td style="padding:6px 10px;">Som over, eller adapter på annen elektrisk krets</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:6px 10px;">Sett-Remote feiler stille</td>
+        <td style="padding:6px 10px;">Feil DAK (sjekk HWWC-koden), eller adapter mangler strøm</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 10px;">Ingen DHCP-lease</td>
+        <td style="padding:6px 10px;">NMK OK men ingen DHCP-server på den andre siden</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</main>
+
+<footer>
+  <span>Curb Energy Monitor — Serial &amp; Powerline guide &nbsp;&mdash;&nbsp; v1.0</span>
+</footer>
+
+<script>
+let lang = localStorage.getItem('curb_lang') || 'no';
+
+const T = {
+  no: {
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering', nav_set:'Innstillinger',
+    nav_sys:'System', nav_ser:'Serial / Powerline',
+    page_title:'&#128268; Serial-konsoll &amp; Powerline-paring',
+    j6_title:'&#128204; J6 — FTDI serial-konsoll',
+    j6_desc:'J6 er en 6-pinners 2.54 mm header på Curb-kortet, merket J6. Brukes til serial-konsoll når SSH ikke er tilgjengelig — f.eks. ved boot-problemer eller før nettverksoppsett. Spenningsnivå: 3.3V.',
+    j6_warn:'&#9888; J6 har ingen VCC-pin — Curb strømsettes separat via vanlig strømkabel. Koble kun GND (pin 6), TX (pin 2) og RX (pin 3).',
+    j6_pinout_title:'Pinout — empirisk verifisert (pin 6 = firkantet pad = GND)',
+    serial_settings:'Serial-innstillinger', serial_login:'Login:',
+    chrome_title:'&#127760; Chrome Web Serial Monitor',
+    chrome_desc:'Chrome har innebygget serial-terminal via Web Serial API — ingen installasjon nødvendig.',
+    chrome_tip:'&#10003; Krever Chrome 89 eller nyere. Fungerer ikke i Firefox eller Safari.',
+    chrome_connect:'Koble til', chrome_tips:'Tips',
+    pl_title:'&#128268; Powerline-paring (Curb &#8596; HomePlug AV-adapter)',
+    pl_desc:'Manuell paring av Curb sin innebygde QCA7000 powerline-modem (eth1) mot en Curb-merket 600 Mbps HomePlug AV-adapter når midt-LED på adapteren er av (= ikke parret).',
+    pl_warn:'&#9888; Adapter og Curb må være på samme elektriske krets. Begynn med samme stikkontakt for testing — kretsbrytere og faser kan blokkere powerline-signalet.',
+    pl_need:'Du trenger', pl_trouble:'Feilsøking',
+    coffee:'Kjøp meg en kaffe',
+  },
+  en: {
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration', nav_set:'Settings',
+    nav_sys:'System', nav_ser:'Serial / Powerline',
+    page_title:'&#128268; Serial Console &amp; Powerline Pairing',
+    j6_title:'&#128204; J6 — FTDI Serial Console',
+    j6_desc:'J6 is a 6-pin 2.54 mm header on the Curb board, labeled J6. Used for serial console access when SSH is unavailable — e.g. during boot issues or before network setup. Logic level: 3.3V.',
+    j6_warn:'&#9888; J6 has no VCC pin — power the Curb separately via its normal power cable. Connect only GND (pin 6), TX (pin 2) and RX (pin 3).',
+    j6_pinout_title:'Pinout — empirically verified (pin 6 = square pad = GND)',
+    serial_settings:'Serial settings', serial_login:'Login:',
+    chrome_title:'&#127760; Chrome Web Serial Monitor',
+    chrome_desc:'Chrome has a built-in serial terminal via the Web Serial API — no installation required.',
+    chrome_tip:'&#10003; Requires Chrome 89 or later. Does not work in Firefox or Safari.',
+    chrome_connect:'Connecting', chrome_tips:'Tips',
+    pl_title:'&#128268; Powerline Pairing (Curb &#8596; HomePlug AV adapter)',
+    pl_desc:'Manual pairing of the Curb built-in QCA7000 powerline modem (eth1) with a Curb-branded 600 Mbps HomePlug AV adapter when the middle LED on the adapter is off (= not paired).',
+    pl_warn:'&#9888; Adapter and Curb must be on the same electrical circuit. Start with the same outlet for testing — circuit breakers and phases can block the powerline signal.',
+    pl_need:'Requirements', pl_trouble:'Troubleshooting',
+    coffee:'Buy me a coffee',
+  },
+};
+
+function applyLang(l) {
+  lang = l; localStorage.setItem('curb_lang', l);
+  const tr = T[l] || T.no;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (tr[k] != null) el.innerHTML = tr[k];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.lang === l));
+}
+
+applyLang(lang);
+</script>
+
+</body>
+</html>
