@@ -127,6 +127,12 @@
   </div>
 </nav>
 
+<!-- Update notification banner -->
+<div id="update-banner" style="display:none;background:rgba(56,139,253,0.10);border-bottom:1px solid rgba(56,139,253,0.25);padding:7px 20px;font-size:0.80rem;color:#e6edf3;text-align:center;position:relative">
+  ⬆ <span data-i18n="update_avail">Ny versjon tilgjengelig:</span> <strong><a id="update-ver" href="https://github.com/vegardm/curb-local/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none"></a></strong>
+  <button onclick="document.getElementById('update-banner').style.display='none'" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1">×</button>
+</div>
+
 <main>
   <div class="summary">
     <div class="scard hi">
@@ -220,6 +226,7 @@ const T = {
     st_live:'Live', st_stale:'Forsinket', st_err:'Ingen data',
     of18:' av 18 kretser',
     credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
+    update_avail:'Ny versjon tilgjengelig:',
   },
   en: {
     nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration', nav_set:'Settings', nav_sys:'System', nav_ser:'Serial / Powerline',
@@ -229,6 +236,7 @@ const T = {
     st_live:'Live', st_stale:'Delayed', st_err:'No data',
     of18:' of 18 circuits',
     credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
+    update_avail:'New version available:',
   },
 };
 
@@ -391,7 +399,27 @@ async function poll() {
   } catch(_) { setDot('err'); }
 }
 
+const APP_VERSION = 'v1.2';
+
+async function checkForUpdate() {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch('https://api.github.com/repos/vegardm/curb-local/releases/latest', {signal: ctrl.signal});
+    clearTimeout(tid);
+    if (!res.ok) return;
+    const {tag_name} = await res.json();
+    if (tag_name && tag_name !== APP_VERSION) {
+      const a = document.getElementById('update-ver');
+      if (a) a.textContent = tag_name;
+      const b = document.getElementById('update-banner');
+      if (b) b.style.display = '';
+    }
+  } catch(e) {}
+}
+
 applyLang(lang);
+checkForUpdate();
 loadNames();
 poll();
 setInterval(poll, 1000);
