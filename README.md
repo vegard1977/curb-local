@@ -1,9 +1,12 @@
 # Curb Energy Monitor — Local web interface
 
-Replaces the Curb cloud dependency with a fully local web interface and direct MQTT publishing to Home Assistant.
+Replaces the Curb cloud dependency with a fully local web interface and direct MQTT publishing to Home Assistant. No cloud account needed — everything runs on the device.
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/vegardm)
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/D1D61JYEPS)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+![Demo](screenshots/demo.gif)
 
 > **Disclaimer:** This project is an independent, community-made tool.
 > It is not affiliated with, endorsed by, or supported by Curb (efergy Technologies, LLC) in any way.
