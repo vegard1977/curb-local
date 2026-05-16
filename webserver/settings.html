@@ -185,8 +185,8 @@
        ondrop="handleDrop(event)">
     <div class="upload-icon">📂</div>
     <div class="upload-label" data-i18n="upload_click">Klikk eller dra fil hit</div>
-    <div class="upload-hint-txt" data-i18n="upload_types">HTML-sider, bilder (png/jpg/gif) eller Lua-skript — maks 512 KB</div>
-    <input type="file" id="upload-input" accept=".html,.png,.jpg,.jpeg,.gif,.lua" onchange="fileChosen(this.files[0])">
+    <div class="upload-hint-txt" data-i18n="upload_types">HTML, bilder, Lua-skript (mqtt-streamer/serial-reader), serial-devices.json — maks 512 KB</div>
+    <input type="file" id="upload-input" accept=".html,.png,.jpg,.jpeg,.gif,.lua,.json" onchange="fileChosen(this.files[0])">
   </div>
   <div class="upload-chosen" id="upload-chosen"></div>
   <div class="upload-actions">
@@ -219,7 +219,7 @@ const T = {
     btn_save:'Lagre og restart',
     hdr_upload:'Last opp fil til Curb',
     upload_click:'Klikk eller dra fil hit',
-    upload_types:'HTML-sider, bilder (png/jpg/gif) eller Lua-skript — maks 512 KB',
+    upload_types:'HTML, bilder, Lua-skript (mqtt-streamer/serial-reader), serial-devices.json — maks 512 KB',
     upload_btn:'Last opp',
     upload_ok:'Lastet opp',
     upload_restarted:'(streamer restartet)',
@@ -239,7 +239,7 @@ const T = {
     btn_save:'Save and restart',
     hdr_upload:'Upload file to Curb',
     upload_click:'Click or drag file here',
-    upload_types:'HTML pages, images (png/jpg/gif) or Lua scripts — max 512 KB',
+    upload_types:'HTML, images, Lua scripts (mqtt-streamer/serial-reader), serial-devices.json — max 512 KB',
     upload_btn:'Upload',
     upload_ok:'Uploaded',
     upload_restarted:'(streamer restarted)',

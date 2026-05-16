@@ -36,11 +36,15 @@ local UPLOAD_DIRS = {
   jpeg = '/data/sd/www/',
   gif  = '/data/sd/www/',
   lua  = '/data/lamarr/',
+  json = '/data/',
 }
 local CAL_FILE    = '/data/calibration.json'
 local MQTT_FILE   = '/data/mqtt-config.json'
 local DATA_FILE   = '/tmp/www/latest.json'
-local STREAMER    = 'mqtt-streamer.lua'
+local STREAMER       = 'mqtt-streamer.lua'
+local SERIAL_READER  = 'serial-reader.lua'
+-- JSON-filer som er tillatt via opplasting (andre JSON-filer har egne API-endepunkter)
+local ALLOWED_JSON = { ['serial-devices.json'] = true }
 local HISTORY_DATA  = '/data/history.json'
 local CIRCUIT_NAMES = '/data/circuit-names.json'
 local DAILY_JSON    = '/data/daily.json'
@@ -131,6 +135,16 @@ local function restart_streamer()
     logger:info('Sendt SIGTERM til %s (PID %d), hm respawner', STREAMER, pid)
   else
     logger:warn('restart_streamer: fant ikke prosess %s', STREAMER)
+  end
+end
+
+local function restart_serial_reader()
+  local pid = find_pid(SERIAL_READER)
+  if pid then
+    os.execute('kill ' .. pid)
+    logger:info('Sendt SIGTERM til %s (PID %d), hm respawner', SERIAL_READER, pid)
+  else
+    logger:warn('restart_serial_reader: fant ikke prosess %s', SERIAL_READER)
   end
 end
 
@@ -350,14 +364,22 @@ local function handle_post_upload(client, req)
   if not dir then
     return json_err(client, '400 Bad Request',
       'Filtype ikke tillatt: .' .. ext ..
-      ' (tillatt: html, png, jpg, jpeg, gif, lua)')
+      ' (tillatt: html, png, jpg, jpeg, gif, lua, json)')
   end
 
   -- Lua: kun tillatte filer for sikkerhets skyld
   if ext == 'lua' then
-    if safe ~= 'mqtt-streamer.lua' and safe ~= 'api-server.lua' then
+    if safe ~= 'mqtt-streamer.lua' and safe ~= 'api-server.lua' and safe ~= 'serial-reader.lua' then
       return json_err(client, '400 Bad Request',
-        'Lua: kun mqtt-streamer.lua og api-server.lua er tillatt')
+        'Lua: kun mqtt-streamer.lua, api-server.lua og serial-reader.lua er tillatt')
+    end
+  end
+
+  -- JSON: kun tillatte konfig-filer
+  if ext == 'json' then
+    if not ALLOWED_JSON[safe] then
+      return json_err(client, '400 Bad Request',
+        'JSON: kun serial-devices.json er tillatt via opplasting')
     end
   end
 
@@ -369,15 +391,21 @@ local function handle_post_upload(client, req)
       'Kunne ikke skrive fil: ' .. (werr or dest))
   end
 
-  -- Webfiler: kopier ogs?? til aktiv /tmp/www/ slik at endringen er umiddelbar
+  -- Webfiler: kopier også til aktiv /tmp/www/ slik at endringen er umiddelbar
   if dir == '/data/sd/www/' then
     write_file('/tmp/www/' .. safe, data)
   end
 
-  -- Lua streamer: restart slik at ny versjon lastes
+  -- Restart relevante prosesser ved behov
   local restarted = false
   if safe == 'mqtt-streamer.lua' then
     restart_streamer()
+    restarted = true
+  elseif safe == 'serial-reader.lua' then
+    restart_serial_reader()
+    restarted = true
+  elseif safe == 'serial-devices.json' then
+    restart_serial_reader()
     restarted = true
   end
 
