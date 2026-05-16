@@ -207,9 +207,9 @@ Sortable per-circuit table of live W/A/V/PF readings with group subtotals.
 One-click PDF print generates a formatted measurement report — useful for documenting a circuit panel.
 
 ### Kernel module manager
-Manage USB kernel drivers from the browser: load/unload modules, toggle boot persistence
-(writes `/etc/curb-modules.conf`). Pre-compiled drivers for Linux 3.16.0-karo are included
-in `modules/bin/`: cdc-acm, ch341, cp210x, usbserial (supports Arduino, ESP32, CH340 clones).
+Manage USB kernel drivers from the browser: load/unload modules and toggle boot persistence.
+Pre-compiled drivers for Linux 3.16.0-karo are included in `modules/bin/`:
+cdc-acm, ch341, cp210x, usbserial (supports Arduino Uno/Mega, ESP32, CH340 clones).
 
 ### USB file manager
 Browse, upload, download, rename and delete files on `/data/sd/`. Also supports formatting
@@ -261,8 +261,6 @@ Shows signal strength (dBm), current connection status and assigned IP.
 | `/tmp/www/` | Active web root (lighttpd, populated from `/data/sd/www/` on boot) |
 | `/tmp/www/sysinfo.json` | System stats written every 10 s by mqtt-streamer |
 | `/lib/modules/3.16.0-karo/kernel/drivers/usb/*/` | USB kernel drivers (cdc-acm, ch341, cp210x…) |
-| `/etc/curb-modules.conf` | List of kernel modules to load at boot |
-| `/etc/init.d/S35modules` | Init script that loads modules from curb-modules.conf |
 
 ## Backup and restore
 

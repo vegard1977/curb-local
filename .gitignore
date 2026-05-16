@@ -49,6 +49,11 @@ curb.jpg
 19.png
 bilder/
 
+# Kernel module build infrastructure -- kept locally, not published
+modules/build/
+modules/init/
+modules/source/
+
 # Embedded repos -- separate projects
 Curb-to-Mqtt/
 amsreader-firmware/
