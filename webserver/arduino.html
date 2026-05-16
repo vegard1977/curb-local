@@ -134,6 +134,11 @@
   </div>
 </nav>
 
+<div id="update-banner" style="display:none;background:rgba(56,139,253,0.10);border-bottom:1px solid rgba(56,139,253,0.25);padding:7px 20px;font-size:0.80rem;color:#e6edf3;text-align:center;position:relative">
+  ⬆ <span data-i18n="update_avail">Ny versjon tilgjengelig:</span> <strong><a id="update-ver" href="https://github.com/vegard1977/curb-local/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none"></a></strong>
+  <button onclick="document.getElementById('update-banner').style.display='none'" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1">×</button>
+</div>
+
 <main>
   <div id="temp-grid" class="temp-grid"></div>
   <div id="devices"></div>
@@ -152,7 +157,10 @@
   </div>
 </main>
 
-<footer id="footer" data-i18n="foot_initial">Sist oppdatert: —</footer>
+<footer>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v2.1</span></span>
+  <span id="footer-time" style="float:right" data-i18n="foot_initial">Sist oppdatert: —</span>
+</footer>
 
 <script>
 'use strict';
@@ -163,9 +171,11 @@ const T = {
     nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering', nav_set:'Innstillinger',
     nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi',
     nav_kurs:'Kursliste', nav_ard:'Arduino',
+    credit:'Utviklet av Vegard Myrvang',
     coffee:'Kjøp meg en kaffe',
     no_data:'Ingen data fra Arduino/ESP32 — venter på serial-reader.lua…',
     raw_title:'Debug — rå JSON', raw_show:'Vis', raw_hide:'Skjul', raw_wait:'venter på data…',
+    update_avail:'Ny versjon tilgjengelig:',
     foot_updated:'Sist oppdatert:', foot_wait:'Venter på data…', foot_initial:'Sist oppdatert: —',
     dot_live:'Live', dot_ago:'s siden', dot_err:'Feil',
     krets:'Krets', total_a:'A total', temp_default:'sensor',
@@ -178,9 +188,11 @@ const T = {
     nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration', nav_set:'Settings',
     nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi',
     nav_kurs:'Circuits', nav_ard:'Arduino',
+    credit:'Developed by Vegard Myrvang',
     coffee:'Buy me a coffee',
     no_data:'No data from Arduino/ESP32 — waiting for serial-reader.lua…',
     raw_title:'Debug — raw JSON', raw_show:'Show', raw_hide:'Hide', raw_wait:'waiting for data…',
+    update_avail:'New version available:',
     foot_updated:'Last update:', foot_wait:'Waiting for data…', foot_initial:'Last update: —',
     dot_live:'Live', dot_ago:'s ago', dot_err:'Error',
     krets:'Circuit', total_a:'A total', temp_default:'sensor',
@@ -447,7 +459,7 @@ async function fetchAndRender() {
 
     const tr = T[lang] || T.no;
     const d = new Date((data.ts || 0) * 1000);
-    document.getElementById('footer').textContent =
+    document.getElementById('footer-time').textContent =
       tr.foot_updated + ' ' + d.toLocaleTimeString(tr.locale);
 
   } catch (e) {
@@ -461,9 +473,29 @@ async function fetchAndRender() {
   }
 }
 
+const APP_VERSION = 'v2.1';
+
+async function checkForUpdate() {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch('https://api.github.com/repos/vegard1977/curb-local/releases/latest', {signal: ctrl.signal});
+    clearTimeout(tid);
+    if (!res.ok) return;
+    const {tag_name} = await res.json();
+    if (tag_name && tag_name !== APP_VERSION) {
+      const a = document.getElementById('update-ver');
+      if (a) a.textContent = tag_name;
+      const b = document.getElementById('update-banner');
+      if (b) b.style.display = '';
+    }
+  } catch(e) {}
+}
+
 // Bruk lagret sprak ved oppstart
 applyLang(lang);
 
+checkForUpdate();
 fetchAndRender();
 setInterval(fetchAndRender, 2000);
 </script>
