@@ -261,6 +261,8 @@ Shows signal strength (dBm), current connection status and assigned IP.
 | `/tmp/www/` | Active web root (lighttpd, populated from `/data/sd/www/` on boot) |
 | `/tmp/www/sysinfo.json` | System stats written every 10 s by mqtt-streamer |
 | `/lib/modules/3.16.0-karo/kernel/drivers/usb/*/` | USB kernel drivers (cdc-acm, ch341, cp210x…) |
+| `/etc/init.d/S35modules` | Boot init script — loads modules listed in curb-modules.conf |
+| `/etc/curb-modules.conf` | List of `.ko` paths to load at boot (managed by modules.html) |
 
 ## Backup and restore
 

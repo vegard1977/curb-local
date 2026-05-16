@@ -16,6 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **USB file manager** (`usb.html`) — browse `/data/sd/` from the browser: upload, download, rename, delete files; format USB partition; move/copy files between directories
 - **WiFi configuration** (`wifi.html`) — scan for access points, connect/disconnect, show signal strength and current connection state
 - **USB kernel drivers** (`modules/bin/`) — pre-compiled kernel modules for Linux 3.16.0-karo: `cdc-acm` (Arduino Uno/Mega, ESP32 native USB), `ch341` (CH340G clones), `cp210x` (Silicon Labs CP2102), `usbserial` core and `usb-storage`
+- **Kernel module init scripts** (`modules/init/`) — `S35modules` (config-driven, managed by modules.html) and `S35cdc-modules` (fixed cdc/ch341/cp210x loader); `curb-modules.conf` template for boot persistence
 - **Arduino PlatformIO project** (`arduino/`) — `main.cpp` forwards Curb energy data over USB serial to connected Arduino/ESP32
 - `serial-devices.json.example` — example config for serial-reader device list
 

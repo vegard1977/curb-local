@@ -6,6 +6,20 @@ Load and manage modules from the browser via `http://<curb-ip>/modules.html`, or
 
 ---
 
+## Contents
+
+```
+modules/
+├── bin/            ← Pre-compiled .ko files
+├── init/           ← Boot init scripts (copy to /etc/init.d/ on Curb)
+│   ├── S35modules          — Config-driven loader (reads curb-modules.conf)
+│   ├── S35cdc-modules      — Fixed loader for cdc-acm + ch341 + cp210x
+│   └── curb-modules.conf   — List of modules to load at boot
+└── README.md
+```
+
+---
+
 ## Available modules
 
 | File | Driver | Size | Purpose |
@@ -31,6 +45,28 @@ Load and manage modules from the browser via `http://<curb-ip>/modules.html`, or
 | ESP32 dev-board (CP2102/CP2104) | cp210x | `/dev/ttyUSB0` |
 | ESP32-S2/S3 native USB | cdc_acm | `/dev/ttyACM0` |
 | USB modem (3G/4G) | cdc_acm | `/dev/ttyACM0` |
+
+---
+
+## Install init scripts
+
+Copy the init scripts to the Curb device to load modules automatically at boot:
+
+```sh
+# Copy init scripts
+scp -i ~/.ssh/id_rsa_curb -o PubkeyAcceptedAlgorithms=+ssh-rsa \
+    modules/init/S35modules modules/init/curb-modules.conf \
+    root@<curb-ip>:/etc/init.d/
+
+# Make executable
+ssh root@<curb-ip> "chmod 755 /etc/init.d/S35modules"
+```
+
+**S35modules** (recommended) — reads `/etc/curb-modules.conf` (one `.ko` path per line).
+Managed automatically by `modules.html` when you toggle autoload.
+
+**S35cdc-modules** — alternative with hardcoded cdc-acm + ch341 + cp210x paths.
+Use this if you prefer a simpler, fixed setup.
 
 ---
 
