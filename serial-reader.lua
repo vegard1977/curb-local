@@ -197,6 +197,36 @@ local function send_discovery(dev)
     }), true)
   end
 
+  -- AMS-spenning og fase-stroem (for ESP32 med amsreader-firmware)
+  if dev.device_type == 'amsreader' then
+    local ams_sensors = {
+      { id='l1_v', name='AMS L1 Spenning', topic='ams/l1_v', unit='V', cls='voltage' },
+      { id='l2_v', name='AMS L2 Spenning', topic='ams/l2_v', unit='V', cls='voltage' },
+      { id='l3_v', name='AMS L3 Spenning', topic='ams/l3_v', unit='V', cls='voltage' },
+      { id='l1_i', name='AMS L1 Strom',    topic='ams/l1_i', unit='A', cls='current' },
+      { id='l2_i', name='AMS L2 Strom',    topic='ams/l2_i', unit='A', cls='current' },
+      { id='l3_i', name='AMS L3 Strom',    topic='ams/l3_i', unit='A', cls='current' },
+      { id='power',  name='AMS Import',    topic='ams/power',  unit='W',  cls='power' },
+      { id='export', name='AMS Eksport',   topic='ams/export', unit='W',  cls='power' },
+      { id='pf',     name='AMS Effektfaktor', topic='ams/pf', unit=nil,  cls='power_factor' },
+    }
+    for _, s in ipairs(ams_sensors) do
+      local obj_id    = DEVICE_ID .. '_' .. s.id
+      local cfg_topic = HA_PREFIX .. '/sensor/' .. DEVICE_ID .. '/' .. obj_id .. '/config'
+      local cfg = {
+        name        = s.name,
+        unique_id   = obj_id,
+        state_topic = BASE_TOPIC .. '/' .. s.topic,
+        device_class = s.cls,
+        state_class  = 'measurement',
+        device       = device,
+      }
+      if s.unit then cfg.unit_of_measurement = s.unit end
+      pub(cfg_topic, json.encode(cfg), true)
+    end
+    logger:info('[%s] AMS discovery sendt (9 sensorer)', dev.label)
+  end
+
   logger:info('[%s] Discovery sendt (%d CT, %d temp)', dev.label, dev.num_ct or 0, dev.num_temp or 0)
 end
 
@@ -228,6 +258,33 @@ local function process_line(dev, line)
     return
   end
 
+  -- ── AMS/amsreader-format: {u1, u2, u3, i1, i2, i3, p, px, pf} ──────────
+  if data.u1 ~= nil then
+    dev.last_voltages       = { l1 = data.u1, l2 = data.u2 or 0, l3 = data.u3 or 0 }
+    dev.last_phase_currents = { l1 = data.i1 or 0, l2 = data.i2 or 0, l3 = data.i3 or 0 }
+    dev.last_power          = data.p  or 0
+    dev.last_power_export   = data.px or 0
+    dev.last_pf             = data.pf or 0
+
+    pub(BASE_TOPIC .. '/ams/l1_v',  string.format('%.1f', data.u1))
+    pub(BASE_TOPIC .. '/ams/l2_v',  string.format('%.1f', data.u2 or 0))
+    pub(BASE_TOPIC .. '/ams/l3_v',  string.format('%.1f', data.u3 or 0))
+    pub(BASE_TOPIC .. '/ams/l1_i',  string.format('%.2f', data.i1 or 0))
+    pub(BASE_TOPIC .. '/ams/l2_i',  string.format('%.2f', data.i2 or 0))
+    pub(BASE_TOPIC .. '/ams/l3_i',  string.format('%.2f', data.i3 or 0))
+    pub(BASE_TOPIC .. '/ams/power',  tostring(data.p  or 0))
+    pub(BASE_TOPIC .. '/ams/export', tostring(data.px or 0))
+    pub(BASE_TOPIC .. '/ams/pf',     string.format('%.3f', data.pf or 0))
+
+    logger:debug('[%s] AMS U=%.1f/%.1f/%.1f V  I=%.2f/%.2f/%.2f A  P=%d W  PX=%d W  PF=%.3f',
+      dev.label,
+      data.u1, data.u2 or 0, data.u3 or 0,
+      data.i1 or 0, data.i2 or 0, data.i3 or 0,
+      data.p or 0, data.px or 0, data.pf or 0)
+    return
+  end
+
+  -- ── Arduino-format: {t, a} (temperaturar + CT-straum) ───────────────────
   local temps = data.t or {}
   local amps  = data.a or {}
 
@@ -254,7 +311,7 @@ end
 local function write_combined_json(devices)
   local out = { devices = {} }
   for _, d in ipairs(devices) do
-    out.devices[#out.devices + 1] = {
+    local entry = {
       label       = d.label,
       port        = d.port,
       ct_offset   = d.ct_offset,
@@ -262,6 +319,14 @@ local function write_combined_json(devices)
       temps       = d.last_temps  or {},
       amps        = d.last_amps   or {},
     }
+    if d.last_voltages then
+      entry.voltages       = d.last_voltages
+      entry.phase_currents = d.last_phase_currents or {}
+      entry.active_power   = d.last_power        or 0
+      entry.export_power   = d.last_power_export  or 0
+      entry.power_factor   = d.last_pf            or 0
+    end
+    out.devices[#out.devices + 1] = entry
   end
   out.ts = os.time()
   local f = io.open(ARDUINO_JSON, 'w')

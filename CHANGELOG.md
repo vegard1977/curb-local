@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v2.1] — 2026-05-16
+
+### Added
+- **ESP32 AMS integration** — `serial-reader.lua` now handles amsreader-firmware JSON format (`u1`/`u2`/`u3`/`i1`/`i2`/`i3`/`p`/`px`/`pf`); auto-detected by `u1` field presence
+- **AMS voltage display** (`arduino.html`) — green phase section shows L1/L2/L3 voltage (large), per-phase current, import/export W and power factor for ESP32 AMS devices
+- **HA auto-discovery for AMS** — 9 MQTT sensors: L1/L2/L3 voltage, L1/L2/L3 current, import W, export W, power factor
+- `serial-devices.json.example` — updated ESP32 entry with `device_type: "amsreader"` replacing old CT placeholder
+
+### Changed
+- All pages updated to v2.1 in footer
+
+---
+
 ## [v2.0] — 2026-05-16
 
 ### Added

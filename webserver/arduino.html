@@ -75,6 +75,25 @@
     .ct-a { font-size: 0.76rem; font-variant-numeric: tabular-nums; color: var(--text); text-align: right; white-space: nowrap; }
     .ct-row.off .ct-a { color: var(--muted); }
 
+    /* ── AMS fase-seksjon ────────────────────────────────────────────────── */
+    .ams-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+    .ams-hdr { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: linear-gradient(90deg, rgba(63,185,80,.18) 0%, rgba(63,185,80,.04) 100%); }
+    .ams-title { font-size: 0.80rem; font-weight: 600; color: #e6edf3; }
+    .ams-port  { font-size: 0.70rem; color: var(--muted); font-family: monospace; }
+    .ams-body  { padding: 14px 16px; }
+    .ams-phase-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+    .ams-phase { background: rgba(56,139,253,.07); border: 1px solid rgba(56,139,253,.2); border-radius: 6px; padding: 10px 12px; text-align: center; }
+    .ams-phase-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+    .ams-phase-v { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); line-height: 1.1; }
+    .ams-phase-unit { font-size: 0.75rem; color: var(--muted); margin-left: 1px; }
+    .ams-phase-i { font-size: 0.80rem; color: var(--text); margin-top: 3px; font-variant-numeric: tabular-nums; }
+    .ams-summary { display: flex; gap: 20px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--border); }
+    .ams-kv { display: flex; flex-direction: column; }
+    .ams-kv-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .ams-kv-val { font-size: 0.92rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
+    .ams-kv-val.import { color: var(--red); }
+    .ams-kv-val.export { color: var(--green); }
+
     /* ── Ingen data ───────────────────────────────────────────────────────── */
     .no-data { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 0.88rem; }
 
@@ -145,7 +164,7 @@ const T = {
     nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi',
     nav_kurs:'Kursliste', nav_ard:'Arduino',
     coffee:'Kjøp meg en kaffe',
-    no_data:'Ingen data fra Arduino — venter på serial-reader.lua…',
+    no_data:'Ingen data fra Arduino/ESP32 — venter på serial-reader.lua…',
     raw_title:'Debug — rå JSON', raw_show:'Vis', raw_hide:'Skjul', raw_wait:'venter på data…',
     foot_updated:'Sist oppdatert:', foot_wait:'Venter på data…', foot_initial:'Sist oppdatert: —',
     dot_live:'Live', dot_ago:'s siden', dot_err:'Feil',
@@ -153,13 +172,14 @@ const T = {
     delta_label:'topp/bunn', err_fetch:'FETCH-FEIL:', err_resp:'Respons:',
     locale:'no-NO',
     panel_top:'Sikringsskap topp', panel_bottom:'Sikringsskap bunn',
+    ams_import:'Import', ams_export:'Eksport', ams_pf:'Effektfaktor',
   },
   en: {
     nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration', nav_set:'Settings',
     nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi',
     nav_kurs:'Circuits', nav_ard:'Arduino',
     coffee:'Buy me a coffee',
-    no_data:'No data from Arduino — waiting for serial-reader.lua…',
+    no_data:'No data from Arduino/ESP32 — waiting for serial-reader.lua…',
     raw_title:'Debug — raw JSON', raw_show:'Show', raw_hide:'Hide', raw_wait:'waiting for data…',
     foot_updated:'Last update:', foot_wait:'Waiting for data…', foot_initial:'Last update: —',
     dot_live:'Live', dot_ago:'s ago', dot_err:'Error',
@@ -167,6 +187,7 @@ const T = {
     delta_label:'top/bottom', err_fetch:'FETCH ERROR:', err_resp:'Response:',
     locale:'en-GB',
     panel_top:'Distribution panel top', panel_bottom:'Distribution panel bottom',
+    ams_import:'Import', ams_export:'Export', ams_pf:'Power factor',
   },
 };
 let lang = localStorage.getItem('curb_lang') || 'no';
@@ -311,6 +332,61 @@ function renderDevices(devices) {
   }
 }
 
+function renderAmsDevices(devices) {
+  // Fjern gamle AMS-seksjoner
+  document.querySelectorAll('.ams-section').forEach(el => el.remove());
+
+  const container = document.getElementById('devices');
+  const tr = T[lang] || T.no;
+
+  for (const dev of devices) {
+    if (!dev.voltages) continue;
+
+    const v = dev.voltages;
+    const i = dev.phase_currents || {};
+    const p  = dev.active_power  || 0;
+    const px = dev.export_power  || 0;
+    const pf = dev.power_factor  || 0;
+
+    const section = document.createElement('div');
+    section.className = 'ams-section';
+
+    section.innerHTML = `
+      <div class="ams-hdr">
+        <span class="ams-title">${dev.label}</span>
+        <span class="ams-port">${dev.port}</span>
+      </div>
+      <div class="ams-body">
+        <div class="ams-phase-grid">
+          ${['l1','l2','l3'].map((ph, idx) => `
+            <div class="ams-phase">
+              <div class="ams-phase-label">L${idx+1}</div>
+              <div class="ams-phase-v">${(v[ph]||0).toFixed(1)}<span class="ams-phase-unit">V</span></div>
+              <div class="ams-phase-i">${(i[ph]||0).toFixed(2)} A</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="ams-summary">
+          <div class="ams-kv">
+            <span class="ams-kv-label">${tr.ams_import}</span>
+            <span class="ams-kv-val import">${p} W</span>
+          </div>
+          <div class="ams-kv">
+            <span class="ams-kv-label">${tr.ams_export}</span>
+            <span class="ams-kv-val export">${px} W</span>
+          </div>
+          <div class="ams-kv">
+            <span class="ams-kv-label">${tr.ams_pf}</span>
+            <span class="ams-kv-val">${pf.toFixed(3)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+    // Sett inn før CT-seksjonene
+    container.prepend(section);
+  }
+}
+
 function updateDot(ts) {
   const dot  = document.getElementById('dot');
   const txt  = document.getElementById('dot-text');
@@ -358,13 +434,14 @@ async function fetchAndRender() {
       ...d, temps: arr(d.temps), amps: arr(d.amps),
     }));
     const noData  = document.getElementById('no-data');
-    const hasData = devices.some(d => d.amps.length > 0 || d.temps.length > 0);
+    const hasData = devices.some(d => d.amps.length > 0 || d.temps.length > 0 || d.voltages);
 
     noData.style.display = hasData ? 'none' : '';
 
     if (hasData) {
       renderTemps(devices);
       renderDevices(devices);
+      renderAmsDevices(devices);
     }
     updateDot(data.ts || 0);
 

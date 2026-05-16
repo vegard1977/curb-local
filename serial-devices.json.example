@@ -11,9 +11,10 @@
   {
     "port":        "/dev/ttyUSB0",
     "baud":        115200,
-    "label":       "ESP32",
-    "ct_offset":   34,
-    "num_ct":      6,
+    "label":       "ESP32 AMS",
+    "device_type": "amsreader",
+    "ct_offset":   0,
+    "num_ct":      0,
     "num_temp":    0,
     "temp_labels": []
   }

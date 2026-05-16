@@ -241,7 +241,7 @@
 </main>
 
 <footer>
-  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v2.0</span></span>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v2.1</span></span>
 </footer>
 
 <script>
@@ -573,7 +573,7 @@ applyLang(lang);
     const r = await fetch('https://api.github.com/repos/vegard1977/curb-local/releases/latest', { cache: 'no-store' });
     if (!r.ok) return;
     const j = await r.json();
-    if (j.tag_name && j.tag_name !== 'v2.0') {
+    if (j.tag_name && j.tag_name !== 'v2.1') {
       document.getElementById('update-ver').textContent = j.tag_name;
       const b = document.getElementById('update-banner');
       if (b) b.style.display = 'block';

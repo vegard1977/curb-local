@@ -14,6 +14,55 @@ Replaces the Curb cloud dependency with a fully local web interface and direct M
 
 ---
 
+## What's new in v2.1
+
+| Feature | Page |
+|---------|------|
+| **ESP32 AMS integration** — live L1/L2/L3 voltage, current, import/export power and power factor from AMS meter via amsreader-firmware over USB serial | `arduino.html` |
+| **HA auto-discovery for AMS** — 9 MQTT sensors: voltage, current, power per phase | `serial-reader.lua` |
+
+### Connecting an ESP32 with amsreader-firmware
+
+[UtilitechAS/amsreader-firmware](https://github.com/UtilitechAS/amsreader-firmware) reads the AMS HAN port
+and normally publishes data to MQTT. By adding a small patch to `AmsToMqttBridge.cpp`, it also outputs
+a compact JSON line on USB serial (UART0) after each meter reading:
+
+```json
+{"u1":230.5,"u2":231.2,"u3":229.8,"i1":5.12,"i2":3.08,"i3":4.71,"p":2140,"px":0,"pf":0.98}
+```
+
+**Requirements:**
+- ESP32-DevKitC (or similar) with CP2102 USB-UART (cp210x driver already included in `modules/bin/`)
+- HAN port wired to **GPIO16** (UART2 RX) — do **not** use GPIO3/RX0 (conflicts with USB serial)
+- Curb USB hub with cp210x module loaded
+
+**Patch summary** (`src/AmsToMqttBridge.cpp`):
+
+```cpp
+// 1. Add global (after setupMode):
+bool serialShared = false;
+
+// 2. In setup(), after "bool shared = false;" block:
+serialShared = shared;
+
+// 3. In handleDataSuccess(), after meterState.apply(*data):
+if (!serialShared) {
+    Serial.printf("{\"u1\":%.1f,\"u2\":%.1f,\"u3\":%.1f,"
+        "\"i1\":%.2f,\"i2\":%.2f,\"i3\":%.2f,"
+        "\"p\":%d,\"px\":%d,\"pf\":%.3f}\n",
+        meterState.getL1Voltage(), meterState.getL2Voltage(), meterState.getL3Voltage(),
+        meterState.getL1Current(), meterState.getL2Current(), meterState.getL3Current(),
+        (int)meterState.getActiveImportPower(),
+        (int)meterState.getActiveExportPower(),
+        meterState.getPowerFactor());
+}
+```
+
+Add `"device_type": "amsreader"` to the ESP32 entry in `/data/serial-devices.json` on the Curb device.
+`serial-reader.lua` auto-detects the format and publishes to `<base_topic>/ams/*` on MQTT.
+
+---
+
 ## What's new in v2.0
 
 | Feature | Page |
