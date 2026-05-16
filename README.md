@@ -14,6 +14,21 @@ Replaces the Curb cloud dependency with a fully local web interface and direct M
 
 ---
 
+## What's new in v2.0
+
+| Feature | Page |
+|---------|------|
+| **Web terminal** — full SSH-like terminal in the browser, Tab-completion, command history | `cli.html` |
+| **Arduino / Serial monitor** — live serial output from Arduino/ESP32 over USB | `arduino.html` |
+| **Live measurement list** — per-circuit W/A/V/PF table with one-click PDF print | `kursliste.html` |
+| **Kernel module manager** — load/unload USB drivers, toggle boot persistence | `modules.html` |
+| **USB file manager** — browse, upload, download and manage files on `/data/sd/` | `usb.html` |
+| **WiFi configuration** — scan for networks and connect from the browser | `wifi.html` |
+| **Pre-compiled USB drivers** — cdc-acm, ch341, cp210x for Linux 3.16.0-karo | `modules/bin/` |
+| **Serial reader** — multi-device USB serial reader managed by hm | `serial-reader.lua` |
+
+---
+
 ## Screenshots
 
 ![Dashboard](screenshots/dashboard.png)
@@ -33,6 +48,24 @@ Replaces the Curb cloud dependency with a fully local web interface and direct M
 
 ![Serial / Powerline](screenshots/serial-guide.png)
 *Serial & Powerline guide — J6 connector pinout, USB-serial wiring, PLC bridge instructions*
+
+![Arduino](screenshots/arduino.png)
+*Arduino / Serial monitor — live data from Arduino Mega over USB, temperature sensors and current per circuit*
+
+![Web terminal](screenshots/cli.png)
+*Web terminal — run commands directly on the Curb device from the browser*
+
+![Live measurements](screenshots/kursliste.png)
+*Live measurement list — per-circuit table with address, meter number and live A readings, PDF print*
+
+![Kernel modules](screenshots/modules.png)
+*Kernel module manager — load/unload USB drivers, autoload toggle for boot persistence*
+
+![USB files](screenshots/usb.png)
+*USB file manager — storage status, format, mount/unmount and file transfer*
+
+![WiFi](screenshots/wifi.png)
+*WiFi configuration — scan for networks, connect/disconnect, autostart at boot*
 
 ---
 
