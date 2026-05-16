@@ -5,6 +5,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v2.0] — 2026-05-16
+
+### Added
+- **Web terminal** (`cli.html`) — full SSH-like terminal in the browser with Tab-completion, command history (↑/↓), ANSI colour output and live output streaming via `api-server.lua`
+- **Arduino / Serial monitor** (`arduino.html`) — live serial monitor for Arduino Mega, Uno, ESP32 and other USB-serial devices; auto-detects ports, configurable baud rate, send commands
+- **Serial reader** (`serial-reader.lua`) — multi-device serial reader using `select()` for non-blocking parallel reads; device list managed via `/data/serial-devices.json`
+- **Live measurement list** (`kursliste.html`) — per-circuit live W/A/V/PF table with sortable columns, group totals and one-click PDF print
+- **Kernel module manager** (`modules.html`) — browse, load and unload USB kernel modules from the browser; shows loaded/unloaded state, module info and boot-persistence toggle
+- **USB file manager** (`usb.html`) — browse `/data/sd/` from the browser: upload, download, rename, delete files; format USB partition; move/copy files between directories
+- **WiFi configuration** (`wifi.html`) — scan for access points, connect/disconnect, show signal strength and current connection state
+- **USB kernel drivers** (`modules/bin/`) — pre-compiled kernel modules for Linux 3.16.0-karo: `cdc-acm` (Arduino Uno/Mega, ESP32 native USB), `ch341` (CH340G clones), `cp210x` (Silicon Labs CP2102), `usbserial` core and `usb-storage`
+- **Kernel module init scripts** (`modules/init/`) — `S35modules` (config-driven, web-managed) and `S35cdc-modules` (fixed cdc/ch341/cp210x loader); `curb-modules.conf` for persistent boot config
+- **Arduino PlatformIO project** (`arduino/`) — `main.cpp` forwards Curb energy data over USB serial to connected Arduino/ESP32
+- `serial-devices.json.example` — example config for serial-reader device list
+
+### Changed
+- `install.sh` — deploys all 12 web pages, `serial-reader.lua`, and `serial-devices.json`; adds `serial reader` to `hm.conf`; patches `curb_status.sh` for all new pages
+- All pages updated to v2.0 in footer
+
+---
+
 ## [v1.3] — 2026-04-27
 
 ### Added
@@ -68,6 +89,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+[v2.0]: https://github.com/vegard1977/curb-local/releases/tag/v2.0
 [v1.3]: https://github.com/vegard1977/curb-local/releases/tag/v1.3
 [v1.2]: https://github.com/vegard1977/curb-local/releases/tag/v1.2
 [v1.1]: https://github.com/vegard1977/curb-local/releases/tag/v1.1

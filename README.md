@@ -133,6 +133,12 @@ Alternatively: edit directly in the browser via `http://<curb-ip>/settings.html`
 | Settings | `http://<curb-ip>/settings.html` | MQTT broker, credentials, device name, file upload |
 | System | `http://<curb-ip>/sysinfo.html` | Uptime, memory, storage, network, PLC link quality |
 | Serial / Powerline | `http://<curb-ip>/serial-guide.html` | J6 pinout, USB-serial wiring, PLC bridge guide |
+| Arduino / Serial | `http://<curb-ip>/arduino.html` | Live serial monitor for Arduino/ESP32, send commands |
+| Web terminal | `http://<curb-ip>/cli.html` | Full terminal in browser — Tab-completion, command history |
+| Live measurements | `http://<curb-ip>/kursliste.html` | Per-circuit W/A/V/PF table with PDF print |
+| Kernel modules | `http://<curb-ip>/modules.html` | Load/unload USB drivers from browser |
+| USB files | `http://<curb-ip>/usb.html` | Browse, upload, download and manage files on `/data/sd/` |
+| WiFi | `http://<curb-ip>/wifi.html` | Scan and connect to WiFi networks |
 
 ### Dashboard
 Live power consumption per circuit — updated every second. Shows W, A, V, PF and totals per CT group.
@@ -186,6 +192,34 @@ electrical circuit gives wired LAN access without running new cables.
 Connect TX→RX and RX→TX on a **3.3 V** USB-serial adapter (CP2102, CH340, FTDI).
 Baud rate: **115200**, 8N1. The serial console appears on `/dev/ttymxc1` on the device.
 
+### Arduino / Serial monitor
+Live serial output from any USB-connected Arduino, ESP32 or similar device.
+`serial-reader.lua` manages all configured ports via `select()` for non-blocking parallel reads.
+Configure ports and baud rates in `/data/serial-devices.json` (or via the web interface).
+
+### Web terminal
+Full SSH-like terminal in the browser — runs commands on the Curb device and streams output live.
+Supports Tab-completion, command history (↑/↓), and ANSI colour. Useful for troubleshooting without
+needing an SSH client.
+
+### Live measurements
+Sortable per-circuit table of live W/A/V/PF readings with group subtotals.
+One-click PDF print generates a formatted measurement report — useful for documenting a circuit panel.
+
+### Kernel module manager
+Manage USB kernel drivers from the browser: load/unload modules, toggle boot persistence
+(writes `/etc/curb-modules.conf`). Pre-compiled drivers for Linux 3.16.0-karo are included
+in `modules/bin/`: cdc-acm, ch341, cp210x, usbserial (supports Arduino, ESP32, CH340 clones).
+
+### USB file manager
+Browse, upload, download, rename and delete files on `/data/sd/`. Also supports formatting
+the USB partition and moving files between directories — useful for managing web pages,
+logs and config files without SSH.
+
+### WiFi configuration
+Scan for nearby access points and connect/disconnect from the browser.
+Shows signal strength (dBm), current connection status and assigned IP.
+
 ---
 
 ## Architecture
@@ -217,13 +251,18 @@ Baud rate: **115200**, 8N1. The serial console appears on `/dev/ttymxc1` on the 
 |------|-------------|
 | `/data/lamarr/mqtt-streamer.lua` | MQTT publishing, kWh accumulation, sysinfo writer |
 | `/data/lamarr/api-server.lua` | REST API for web interface (port 8080) |
+| `/data/lamarr/serial-reader.lua` | Multi-device USB serial reader |
 | `/data/calibration.json` | ADE7816 scale factors (editable via browser) |
 | `/data/mqtt-config.json` | MQTT credentials (chmod 600, never in git) |
+| `/data/serial-devices.json` | Serial port config for serial-reader.lua |
 | `/data/daily.json` | Today's kWh per circuit + hourly totals (survives reboots) |
 | `/data/history.json` | Per-circuit kWh archive, one entry per day, max 365 days |
 | `/data/sd/www/` | Persistent storage of web pages and images |
 | `/tmp/www/` | Active web root (lighttpd, populated from `/data/sd/www/` on boot) |
 | `/tmp/www/sysinfo.json` | System stats written every 10 s by mqtt-streamer |
+| `/lib/modules/3.16.0-karo/kernel/drivers/usb/*/` | USB kernel drivers (cdc-acm, ch341, cp210x…) |
+| `/etc/curb-modules.conf` | List of kernel modules to load at boot |
+| `/etc/init.d/S35modules` | Init script that loads modules from curb-modules.conf |
 
 ## Backup and restore
 
@@ -249,12 +288,14 @@ kill $(ps | grep api-server    | grep lua | sed 's/^ *//' | cut -d' ' -f1) 2>/de
 
 | File | Change |
 |------|--------|
-| `/etc/hm.conf` | Adds `mqtt streamer` and `api server` process entries |
-| `/usr/local/bin/curb_status.sh` | Simplified: copies all HTML pages + images, redirects `/` to dashboard |
+| `/etc/hm.conf` | Adds `mqtt streamer`, `api server` and `serial reader` process entries |
+| `/usr/local/bin/curb_status.sh` | Copies all 12 HTML pages + images on each boot |
 | `/data/lamarr/mqtt-streamer.lua` | New file (replaces curb-to-mqtt.py) |
 | `/data/lamarr/api-server.lua` | New file |
+| `/data/lamarr/serial-reader.lua` | New file |
 | `/data/calibration.json` | Only if absent |
 | `/data/mqtt-config.json` | Only if absent |
+| `/data/serial-devices.json` | Only if absent (uploaded from example) |
 
 ## Home Assistant auto-discovery
 

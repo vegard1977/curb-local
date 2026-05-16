@@ -115,13 +115,20 @@ MISSING=0
 for f in \
     "$SCRIPT_DIR/mqtt-streamer.lua" \
     "$SCRIPT_DIR/api-server.lua" \
+    "$SCRIPT_DIR/serial-reader.lua" \
     "$SCRIPT_DIR/calibration.json" \
     "$SCRIPT_DIR/webserver/energy.html" \
     "$SCRIPT_DIR/webserver/settings.html" \
     "$SCRIPT_DIR/webserver/calibration.html" \
     "$SCRIPT_DIR/webserver/sysinfo.html" \
     "$SCRIPT_DIR/webserver/serial-guide.html" \
-    "$SCRIPT_DIR/webserver/stats.html"; do
+    "$SCRIPT_DIR/webserver/stats.html" \
+    "$SCRIPT_DIR/webserver/arduino.html" \
+    "$SCRIPT_DIR/webserver/cli.html" \
+    "$SCRIPT_DIR/webserver/kursliste.html" \
+    "$SCRIPT_DIR/webserver/modules.html" \
+    "$SCRIPT_DIR/webserver/usb.html" \
+    "$SCRIPT_DIR/webserver/wifi.html"; do
   if [ -f "$f" ]; then
     ok "$(basename "$f")"
   else
@@ -148,16 +155,30 @@ ok "Backup saved to $BACKUP_DIR"
 # ── Lua scripts ───────────────────────────────────────────────────────────────
 step "Uploading Lua scripts..."
 remote "mkdir -p /data/lamarr"
-upload "$SCRIPT_DIR/mqtt-streamer.lua" "/data/lamarr/mqtt-streamer.lua"
-upload "$SCRIPT_DIR/api-server.lua"   "/data/lamarr/api-server.lua"
-remote "chmod 755 /data/lamarr/mqtt-streamer.lua /data/lamarr/api-server.lua
-        chown curb:avahi /data/lamarr/mqtt-streamer.lua /data/lamarr/api-server.lua 2>/dev/null || true"
+upload "$SCRIPT_DIR/mqtt-streamer.lua"  "/data/lamarr/mqtt-streamer.lua"
+upload "$SCRIPT_DIR/api-server.lua"     "/data/lamarr/api-server.lua"
+upload "$SCRIPT_DIR/serial-reader.lua"  "/data/lamarr/serial-reader.lua"
+remote "chmod 755 /data/lamarr/mqtt-streamer.lua /data/lamarr/api-server.lua /data/lamarr/serial-reader.lua
+        chown curb:avahi /data/lamarr/mqtt-streamer.lua /data/lamarr/api-server.lua /data/lamarr/serial-reader.lua 2>/dev/null || true"
 ok "Permissions set"
+
+# ── serial-devices.json ────────────────────────────────────────────────────────
+step "Serial devices config..."
+HAS_SERDEV=$(remote "[ -f /data/serial-devices.json ] && echo yes || echo no")
+if [ "$HAS_SERDEV" = "yes" ]; then
+  warn "serial-devices.json already exists -- keeping existing"
+else
+  upload "$SCRIPT_DIR/serial-devices.json.example" "/data/serial-devices.json"
+  remote "chmod 644 /data/serial-devices.json"
+  ok "serial-devices.json uploaded (default/example values)"
+  warn "Edit via http://$CURB_IP/arduino.html to configure your serial devices"
+fi
 
 # ── Web pages ─────────────────────────────────────────────────────────────────
 step "Uploading web pages..."
 remote "mkdir -p /data/sd/www /tmp/www"
-for page in energy.html stats.html settings.html calibration.html sysinfo.html serial-guide.html; do
+for page in energy.html stats.html settings.html calibration.html sysinfo.html serial-guide.html \
+            arduino.html cli.html kursliste.html modules.html usb.html wifi.html; do
   if [ -f "$SCRIPT_DIR/webserver/$page" ]; then
     upload "$SCRIPT_DIR/webserver/$page" "/data/sd/www/$page"
     remote "cp /data/sd/www/$page /tmp/www/$page && chmod 644 /tmp/www/$page"
@@ -243,8 +264,9 @@ add_entry() {
   echo "  Added: $marker"
 }
 
-add_entry "mqtt streamer" '  { name="mqtt streamer",  type="respawn", directory="/data/lamarr", command="./mqtt-streamer.lua", delay=5 },'
-add_entry "api server"    '  { name="api server",     type="respawn", directory="/data/lamarr", command="./api-server.lua",    delay=6 }'
+add_entry "mqtt streamer"  '  { name="mqtt streamer",  type="respawn", directory="/data/lamarr", command="./mqtt-streamer.lua",  delay=5 },'
+add_entry "api server"     '  { name="api server",     type="respawn", directory="/data/lamarr", command="./api-server.lua",     delay=6 },'
+add_entry "serial reader"  '  { name="serial reader",  type="respawn", directory="/data/lamarr", command="./serial-reader.lua",  delay=7 }'
 REMOTE_HM
 ok "hm.conf done"
 
@@ -269,6 +291,12 @@ add_copy calibration.html
 add_copy sysinfo.html
 add_copy serial-guide.html
 add_copy stats.html
+add_copy arduino.html
+add_copy cli.html
+add_copy kursliste.html
+add_copy modules.html
+add_copy usb.html
+add_copy wifi.html
 REMOTE_SH
 ok "curb_status.sh done"
 
@@ -322,12 +350,18 @@ else
 fi
 echo ""
 echo -e "  ${BOLD}Open in browser:${NC}"
-echo -e "    ${CYAN}http://$CURB_IP/energy.html${NC}       <- Dashboard"
-echo -e "    ${CYAN}http://$CURB_IP/calibration.html${NC}  <- Calibration"
-echo -e "    ${CYAN}http://$CURB_IP/settings.html${NC}     <- MQTT settings"
-echo -e "    ${CYAN}http://$CURB_IP/sysinfo.html${NC}      <- System info"
-echo -e "    ${CYAN}http://$CURB_IP/stats.html${NC}        <- Statistikk"
-echo -e "    ${CYAN}http://$CURB_IP/serial-guide.html${NC} <- Serial & Powerline guide"
+echo -e "    ${CYAN}http://$CURB_IP/energy.html${NC}        <- Dashboard"
+echo -e "    ${CYAN}http://$CURB_IP/calibration.html${NC}   <- Calibration"
+echo -e "    ${CYAN}http://$CURB_IP/settings.html${NC}      <- MQTT settings"
+echo -e "    ${CYAN}http://$CURB_IP/sysinfo.html${NC}       <- System info"
+echo -e "    ${CYAN}http://$CURB_IP/stats.html${NC}         <- Statistics"
+echo -e "    ${CYAN}http://$CURB_IP/serial-guide.html${NC}  <- Serial & Powerline guide"
+echo -e "    ${CYAN}http://$CURB_IP/arduino.html${NC}       <- Arduino / Serial monitor"
+echo -e "    ${CYAN}http://$CURB_IP/cli.html${NC}           <- Web terminal"
+echo -e "    ${CYAN}http://$CURB_IP/kursliste.html${NC}     <- Live measurement list"
+echo -e "    ${CYAN}http://$CURB_IP/modules.html${NC}       <- Kernel module manager"
+echo -e "    ${CYAN}http://$CURB_IP/usb.html${NC}           <- USB file manager"
+echo -e "    ${CYAN}http://$CURB_IP/wifi.html${NC}          <- WiFi configuration"
 echo ""
 echo -e "  ${BOLD}Backup:${NC} $BACKUP_DIR (on Curb device)"
 echo -e "  ${BOLD}Log:${NC}    $LOG_FILE"
