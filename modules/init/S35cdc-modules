@@ -1,0 +1,53 @@
+#!/bin/sh
+# S35cdc-modules -- laster USB-serial drivere ved boot
+# cdc_acm = USB CDC (Arduino Uno/Mega, ESP32-S2/S3 m/native USB)
+# ch341   = CH340G (klone-brett, billige Arduino Nano)
+# cp210x  = Silicon Labs CP2102 (originale ESP32 dev-boards)
+#
+# v2: trigger USB re-probe etter modullasting slik at enheter som var
+# tilkoblet ved boot blir gjenkjent uten å måtte plugges ut/inn.
+
+CDC=/lib/modules/3.16.0-karo/kernel/drivers/usb/class/cdc-acm.ko
+CH341=/lib/modules/3.16.0-karo/kernel/drivers/usb/serial/ch341.ko
+CP210X=/lib/modules/3.16.0-karo/kernel/drivers/usb/serial/cp210x.ko
+
+reprobe_usb() {
+    # Trigger re-enumerering på alle USB-busser
+    # Authorized=0 deaktiverer enheten, =1 trigger ny driver-probe
+    for d in /sys/bus/usb/devices/*/authorized; do
+        [ -f "$d" ] || continue
+        # Hopp over root-hub (kategori 1-0:1.0 etc) — vil drepe alt
+        dev=$(echo "$d" | sed 's|/authorized||' | xargs basename)
+        case "$dev" in
+            usb*) continue ;;       # ikke disable root-hub
+            *":"*) continue ;;      # ikke disable interfaces
+        esac
+        echo 0 > "$d" 2>/dev/null
+        sleep 0.2
+        echo 1 > "$d" 2>/dev/null
+    done
+}
+
+case "$1" in
+  start)
+    /sbin/lsmod | grep -q '^cdc_acm ' || /sbin/insmod $CDC
+    /sbin/lsmod | grep -q '^ch341 '   || /sbin/insmod $CH341
+    /sbin/lsmod | grep -q '^cp210x '  || /sbin/insmod $CP210X
+    # Re-probe USB-enheter slik at allerede tilkoblede gjenkjennes
+    reprobe_usb
+    ;;
+  stop)
+    /sbin/lsmod | grep -q '^cp210x '  && /sbin/rmmod cp210x
+    /sbin/lsmod | grep -q '^ch341 '   && /sbin/rmmod ch341
+    /sbin/lsmod | grep -q '^cdc_acm ' && /sbin/rmmod cdc_acm
+    ;;
+  reprobe)
+    # Manuell trigger uten å re-laste moduler
+    reprobe_usb
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|reprobe}"
+    exit 1
+    ;;
+esac
+exit 0

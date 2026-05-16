@@ -20,15 +20,18 @@ cat > "$BASE_DIR/index.html" << 'EOF'
 </body></html>
 EOF
 
-# ── Kopier webgrensesnitt fra persistent lagring ───────────────────────────────
-for PAGE in energy stats settings calibration sysinfo serial-guide; do
+# ── Symlink webgrensesnitt fra persistent lagring til RAM-webroot ──────────────
+# /tmp er i RAM, derfor symlinker (ikke cp): endringer i /data/sd/www reflekteres
+# umiddelbart i /tmp/www uten å kjøre dette skriptet på nytt. Symlinkene gjenskapes
+# ved boot. lighttpd har server.follow-symlink = "enable" satt.
+for PAGE in energy stats settings calibration sysinfo serial-guide usb kursliste wifi arduino modules cli; do
   SRC="/data/sd/www/${PAGE}.html"
   DST="$BASE_DIR/${PAGE}.html"
-  [ -f "$SRC" ] && cp "$SRC" "$DST" && chmod 644 "$DST"
+  [ -f "$SRC" ] && ln -sf "$SRC" "$DST"
 done
 
-# ── Kopier bilder ─────────────────────────────────────────────────────────────
+# ── Symlink bilder ────────────────────────────────────────────────────────────
 for IMG in /data/sd/www/*.jpg /data/sd/www/*.jpeg /data/sd/www/*.png /data/sd/www/*.gif; do
-  [ -f "$IMG" ] && cp "$IMG" "$BASE_DIR/" && chmod 644 "$BASE_DIR/$(basename "$IMG")"
+  [ -f "$IMG" ] && ln -sf "$IMG" "$BASE_DIR/$(basename "$IMG")"
 done
 true   # hindrer at tomt glob gir exit 1 i busybox

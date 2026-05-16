@@ -1,0 +1,60 @@
+#!/bin/sh
+# S35modules — Last inn kernel-moduler ved boot
+# Leser /etc/curb-modules.conf (én sti per linje, # = kommentar)
+# Erstatter S35cdc-modules (hardkodet). Administreres via web-grensesnitt.
+
+CONF=/etc/curb-modules.conf
+
+reprobe_usb() {
+  for auth in /sys/bus/usb/devices/*/authorized; do
+    echo 0 > "$auth" 2>/dev/null
+    echo 1 > "$auth" 2>/dev/null
+  done
+}
+
+case "$1" in
+  start)
+    if [ ! -f "$CONF" ]; then
+      echo "S35modules: $CONF ikke funnet, hopper over" >&2
+      exit 0
+    fi
+    while IFS= read -r line; do
+      line="${line%%#*}"           # fjern kommentar
+      line="${line#"${line%%[! ]*}"}"  # trim leading space
+      line="${line%"${line##*[! ]}"}"  # trim trailing space
+      [ -z "$line" ] && continue
+      if [ -f "$line" ]; then
+        /sbin/insmod "$line" 2>/dev/null && echo "S35modules: lastet $line" || echo "S35modules: FEIL $line" >&2
+      else
+        echo "S35modules: ikke funnet: $line" >&2
+      fi
+    done < "$CONF"
+    reprobe_usb
+    ;;
+  stop)
+    if [ ! -f "$CONF" ]; then exit 0; fi
+    # Avlast i omvendt rekkefølge
+    lines=""
+    while IFS= read -r line; do
+      line="${line%%#*}"
+      line="${line#"${line%%[! ]*}"}"
+      line="${line%"${line##*[! ]}"}"
+      [ -z "$line" ] && continue
+      lines="$line
+$lines"
+    done < "$CONF"
+    for line in $lines; do
+      fname="${line##*/}"
+      modname="${fname%.ko}"
+      modname="$(echo "$modname" | tr '-' '_')"
+      /sbin/rmmod "$modname" 2>/dev/null
+    done
+    ;;
+  reprobe)
+    reprobe_usb
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|reprobe}"
+    exit 1
+    ;;
+esac

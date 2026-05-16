@@ -1,0 +1,46 @@
+#
+# Curb Health Monitor Configuration
+#
+
+watchdog = {
+    period = 5
+    sam_bus = 0
+}
+
+process = (
+    {
+        name = "lamarr sampler"
+        type = "respawn"
+        directory = "/data/lamarr"
+        command = "./sampler.lua"
+        delay = 2
+    },
+    {
+        name = "mqtt streamer"
+        type = "respawn"
+        directory = "/data/lamarr"
+        command = "./mqtt-streamer.lua"
+        delay = 5
+    },
+    {
+        name = "api server"
+        type = "respawn"
+        directory = "/data/lamarr"
+        command = "./api-server.lua"
+        delay = 6
+    },
+    {
+        name = "serial reader"
+        type = "respawn"
+        directory = "/data/lamarr"
+        command = "./serial-reader.lua"
+        delay = 8
+    }
+)
+
+plc = {
+    period = 60
+    reset_count = 15
+}
+
+exitwait = 2

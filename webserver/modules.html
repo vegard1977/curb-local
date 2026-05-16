@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>Moduler — Curb Energy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922; --input-bg: #0d1117;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; }
+    .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
+    .nav-brand span { color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .lang-toggle { display: flex; gap: 3px; }
+    .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
+    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+    main { max-width: 1000px; margin: 0 auto; padding: 24px 16px; width: 100%; flex: 1; }
+
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+    .section + .section { margin-top: 16px; }
+    h2 { font-size: 0.90rem; font-weight: 600; color: #fff; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+    .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 500px) { .status-grid { grid-template-columns: 1fr 1fr; } }
+    .stat-label { font-size: 0.70rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; }
+    .stat-val { display: flex; align-items: center; gap: 7px; font-size: 0.88rem; font-weight: 500; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .dot.ok   { background: var(--green); box-shadow: 0 0 5px rgba(63,185,80,.5); }
+    .dot.warn { background: var(--yellow); }
+    .dot.err  { background: var(--red); }
+
+    .mod-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .mod-table thead th { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; padding: 0 10px 8px 0; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .mod-table td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .mod-table tr:last-child td { border-bottom: none; }
+    .mod-table td.col-actions { text-align: right; white-space: nowrap; }
+    .mod-table td.col-toggle  { text-align: center; }
+    .mod-table td.col-status  { white-space: nowrap; }
+    .mono { font-family: 'Cascadia Mono', 'Consolas', monospace; }
+    .muted { color: var(--muted); }
+    .badge-extra { display: inline-block; font-size: 0.62rem; padding: 1px 6px; border-radius: 8px; background: rgba(56,139,253,.15); color: var(--accent); border: 1px solid rgba(56,139,253,.3); margin-left: 6px; vertical-align: middle; }
+
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 5px; font-size: 0.78rem; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.15s; }
+    .btn:hover:not(:disabled) { opacity: 0.85; }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger  { background: var(--red); color: #fff; }
+    .btn-ghost   { background: none; border: 1px solid var(--border); color: var(--text); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); opacity: 1; }
+    .btn-sm { padding: 5px 10px; font-size: 0.74rem; }
+    .actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+
+    .toast { display: none; padding: 7px 13px; border-radius: 6px; font-size: 0.80rem; font-weight: 500; }
+    .toast.ok  { display: inline-block; background: #0d2d1a; color: var(--green); border: 1px solid var(--green); }
+    .toast.err { display: inline-block; background: #2d0d0d; color: var(--red);   border: 1px solid var(--red); }
+
+    .toggle-switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; display: inline-block; vertical-align: middle; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 20px; cursor: pointer; transition: background .2s; }
+    .toggle-slider:before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; }
+    input:checked + .toggle-slider { background: var(--accent); }
+    input:checked + .toggle-slider:before { transform: translateX(16px); }
+
+    .info-box { background: rgba(56,139,253,.10); border: 1px solid rgba(56,139,253,.25); border-radius: 6px; padding: 10px 14px; font-size: 0.80rem; color: var(--text); margin-bottom: 14px; line-height: 1.4; }
+    .info-box code { font-family: 'Cascadia Mono', 'Consolas', monospace; background: #0a0d12; padding: 1px 5px; border-radius: 3px; font-size: 0.78rem; color: var(--accent); }
+
+    .upload-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .upload-row input[type=file] { font-size: 0.80rem; color: var(--text); flex: 1; min-width: 200px; }
+    .upload-row input[type=file]::file-selector-button { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 5px 12px; font-size: 0.78rem; cursor: pointer; margin-right: 10px; }
+    .upload-row input[type=file]::file-selector-button:hover { border-color: var(--accent); color: var(--accent); }
+
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-right: 5px; }
+    .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
+    .coffee-btn:hover { opacity: 0.85; }
+    .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
+    .kofi-btn:hover { opacity: 0.85; }
+
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 1000px; margin: 0 auto; width: 100%; }
+  </style>
+</head>
+<body>
+
+<div id="update-banner" style="display:none;background:rgba(56,139,253,0.10);border-bottom:1px solid rgba(56,139,253,0.25);padding:7px 20px;font-size:0.80rem;color:#e6edf3;text-align:center;position:relative">
+  <span data-i18n="update_avail">Ny versjon tilgjengelig:</span> <a id="update-ver" href="https://github.com/vegard1977/curb-local/releases" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600"></a>
+  <button onclick="document.getElementById('update-banner').style.display='none'" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1">×</button>
+</div>
+
+<nav>
+  <span class="nav-brand">Curb <span>Energy</span></span>
+  <a href="energy.html" data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html" data-i18n="nav_stat">Statistikk</a>
+  <a href="calibration.html" data-i18n="nav_cal">Kalibrering</a>
+  <a href="settings.html" data-i18n="nav_set">Innstillinger</a>
+  <a href="sysinfo.html" data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" data-i18n="nav_ser">Serial / Powerline</a>
+  <a href="usb.html" data-i18n="nav_usb">USB</a>
+  <a href="wifi.html" data-i18n="nav_wifi">WiFi</a>
+  <a href="kursliste.html" data-i18n="nav_kurs">Kursliste</a>
+  <a href="arduino.html" data-i18n="nav_ard">Arduino</a>
+  <a href="modules.html" class="active" data-i18n="nav_mod">Moduler</a>
+  <a href="cli.html" data-i18n="nav_cli">Terminal</a>
+  <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+<!-- STATUS -->
+<div class="section">
+  <h2 data-i18n="hdr_status">Status</h2>
+  <div class="status-grid">
+    <div>
+      <div class="stat-label" data-i18n="lbl_kernel">Kernel</div>
+      <div class="stat-val mono" id="val-kernel">3.16.0-karo</div>
+    </div>
+    <div>
+      <div class="stat-label" data-i18n="lbl_managed">Administrerte</div>
+      <div class="stat-val"><span class="dot ok" id="dot-mgr"></span><span id="val-managed">—</span></div>
+    </div>
+    <div>
+      <div class="stat-label" data-i18n="lbl_total_loaded">Totalt lastet</div>
+      <div class="stat-val"><span id="val-total-loaded">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE TABLE -->
+<div class="section">
+  <h2 data-i18n="hdr_modules">Kjernemoduler</h2>
+  <div class="info-box" data-i18n="info_modules">Moduler i <code>/lib/modules/3.16.0-karo/kernel/drivers/usb/{class,serial}</code> og <code>extra/</code> (opplastede). Autoload-toggle skriver til <code>/etc/curb-modules.conf</code> som leses av <code>S35modules</code> ved boot.</div>
+  <div style="overflow-x:auto">
+    <table class="mod-table" id="mod-table">
+      <thead>
+        <tr>
+          <th data-i18n="col_module">Modul</th>
+          <th data-i18n="col_file">Fil</th>
+          <th data-i18n="col_size">Størrelse</th>
+          <th data-i18n="col_status">Status</th>
+          <th class="col-toggle" data-i18n="col_autoload">Autoload</th>
+          <th class="col-actions" data-i18n="col_actions">Handlinger</th>
+        </tr>
+      </thead>
+      <tbody id="mod-tbody">
+        <tr><td colspan="6" class="muted" style="text-align:center;padding:20px" data-i18n="loading">Laster…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="actions">
+    <button class="btn btn-ghost btn-sm" onclick="fetchStatus()" data-i18n="btn_refresh">↻ Oppdater</button>
+    <span class="toast" id="toast-mod"></span>
+  </div>
+</div>
+
+<!-- UPLOAD -->
+<div class="section">
+  <h2 data-i18n="hdr_upload">Last opp ny modul</h2>
+  <div class="info-box" data-i18n="info_upload">Kun <code>.ko</code>-filer bygd for kernel <code>3.16.0-karo</code> aksepteres. Maks 1 MB. Fila lagres i <code>/lib/modules/3.16.0-karo/extra/</code> og er klar for lasting.</div>
+  <div class="upload-row">
+    <input type="file" id="mod-file" accept=".ko" onchange="document.getElementById('btn-upload').disabled = !this.files.length">
+    <button class="btn btn-primary" id="btn-upload" disabled onclick="doUpload()" data-i18n="btn_upload">Last opp</button>
+    <span class="toast" id="toast-upload"></span>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v1.4</span></span>
+</footer>
+
+<script>
+'use strict';
+const APP_VERSION = 'v1.4';
+const API = 'http://' + location.hostname + ':8080';
+
+const T = {
+  no: {
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering', nav_set:'Innstillinger',
+    nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi',
+    nav_kurs:'Kursliste', nav_ard:'Arduino', nav_mod:'Moduler',
+    hdr_status:'Status', lbl_kernel:'Kernel', lbl_managed:'Administrerte', lbl_total_loaded:'Totalt lastet',
+    hdr_modules:'Kjernemoduler',
+    info_modules:'Moduler i <code>/lib/modules/3.16.0-karo/kernel/drivers/usb/{class,serial}</code> og <code>extra/</code> (opplastede). Autoload-toggle skriver til <code>/etc/curb-modules.conf</code> som leses av <code>S35modules</code> ved boot.',
+    col_module:'Modul', col_file:'Fil', col_size:'Størrelse', col_status:'Status', col_autoload:'Autoload', col_actions:'Handlinger',
+    loading:'Laster…', no_modules:'Ingen moduler funnet',
+    val_loaded:'Lastet', val_not_loaded:'Ikke lastet',
+    btn_load:'Last', btn_unload:'Avlast', btn_delete:'Slett', btn_refresh:'↻ Oppdater',
+    hdr_upload:'Last opp ny modul',
+    info_upload:'Kun <code>.ko</code>-filer bygd for kernel <code>3.16.0-karo</code> aksepteres. Maks 1 MB. Fila lagres i <code>/lib/modules/3.16.0-karo/extra/</code> og er klar for lasting.',
+    btn_upload:'Last opp',
+    confirm_unload:'Avlast modulen %s?\\n\\nDette kan koble fra USB-enheter som bruker den.',
+    confirm_delete:'Slett fila %s permanent?\\n\\nFila vil fjernes fra disk og fra autoload-listen.',
+    of:'av',
+    credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
+    update_avail:'Ny versjon tilgjengelig:',
+  },
+  en: {
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration', nav_set:'Settings',
+    nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi',
+    nav_kurs:'Circuit list', nav_ard:'Arduino', nav_mod:'Modules',
+    hdr_status:'Status', lbl_kernel:'Kernel', lbl_managed:'Managed', lbl_total_loaded:'Total loaded',
+    hdr_modules:'Kernel modules',
+    info_modules:'Modules in <code>/lib/modules/3.16.0-karo/kernel/drivers/usb/{class,serial}</code> and <code>extra/</code> (uploaded). The autoload toggle writes to <code>/etc/curb-modules.conf</code> which is read by <code>S35modules</code> at boot.',
+    col_module:'Module', col_file:'File', col_size:'Size', col_status:'Status', col_autoload:'Autoload', col_actions:'Actions',
+    loading:'Loading…', no_modules:'No modules found',
+    val_loaded:'Loaded', val_not_loaded:'Not loaded',
+    btn_load:'Load', btn_unload:'Unload', btn_delete:'Delete', btn_refresh:'↻ Refresh',
+    hdr_upload:'Upload new module',
+    info_upload:'Only <code>.ko</code> files built for kernel <code>3.16.0-karo</code> are accepted. Max 1 MB. The file is stored in <code>/lib/modules/3.16.0-karo/extra/</code> and ready to load.',
+    btn_upload:'Upload',
+    confirm_unload:'Unload module %s?\\n\\nThis may disconnect USB devices using it.',
+    confirm_delete:'Permanently delete %s?\\n\\nThe file will be removed from disk and from the autoload list.',
+    of:'of',
+    credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
+    update_avail:'New version available:',
+  }
+};
+
+let lang = localStorage.getItem('curb_lang') || 'no';
+let lastData = null;
+
+function applyLang(l) {
+  lang = l;
+  localStorage.setItem('curb_lang', l);
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (T[l][k] !== undefined) {
+      if (T[l][k].indexOf('<') >= 0) el.innerHTML = T[l][k];
+      else el.textContent = T[l][k];
+    }
+  });
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+  if (lastData) renderTable(lastData);
+}
+
+function fmtBytes(b) {
+  if (b >= 1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
+  if (b >= 1024)      return (b/1024).toFixed(1) + ' KB';
+  return b + ' B';
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function showToast(id, msg, ok) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'toast ' + (ok ? 'ok' : 'err');
+  clearTimeout(el._tid);
+  el._tid = setTimeout(() => { el.className = 'toast'; }, 5000);
+}
+
+function renderTable(d) {
+  lastData = d;
+  const t = T[lang];
+  const tbody = document.getElementById('mod-tbody');
+  const files = d.files || [];
+
+  // Status-summen
+  const loadedCount = files.filter(f => f.loaded).length;
+  document.getElementById('val-managed').textContent = loadedCount + ' ' + t.of + ' ' + files.length;
+  document.getElementById('dot-mgr').className = 'dot ' + (loadedCount > 0 ? 'ok' : 'warn');
+
+  // Vi har ikke loaded_all i responsen — bruk antall managed loaded som proxy
+  // (TODO: utvid API hvis vi vil vise alle lastede moduler)
+  document.getElementById('val-total-loaded').textContent = loadedCount;
+
+  if (files.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">' + esc(t.no_modules) + '</td></tr>';
+    return;
+  }
+
+  // Sorter: extra først (mest interessante), så alfabetisk på navn
+  files.sort((a, b) => {
+    if (a.is_extra !== b.is_extra) return a.is_extra ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  tbody.innerHTML = files.map(f => {
+    const dotClass = f.loaded ? 'ok' : '';
+    const statusTxt = f.loaded ? t.val_loaded : t.val_not_loaded;
+    const extraTag = f.is_extra ? '<span class="badge-extra">extra</span>' : '';
+    const loadBtn = f.loaded
+      ? `<button class="btn btn-ghost btn-sm" onclick="doUnload('${esc(f.module)}', '${esc(f.name)}')">${esc(t.btn_unload)}</button>`
+      : `<button class="btn btn-primary btn-sm" onclick="doLoad('${esc(f.path)}', '${esc(f.name)}')">${esc(t.btn_load)}</button>`;
+    const delBtn = f.is_extra
+      ? ` <button class="btn btn-danger btn-sm" onclick="doDelete('${esc(f.path)}', '${esc(f.name)}')">${esc(t.btn_delete)}</button>`
+      : '';
+    return `<tr>
+      <td class="mono">${esc(f.module)}${extraTag}</td>
+      <td class="mono">${esc(f.name)}</td>
+      <td class="muted">${esc(fmtBytes(f.size || 0))}</td>
+      <td class="col-status"><span class="dot ${dotClass}"></span> ${esc(statusTxt)}</td>
+      <td class="col-toggle">
+        <label class="toggle-switch">
+          <input type="checkbox" ${f.autoload ? 'checked' : ''} onchange="doAutoload('${esc(f.path)}', this.checked, '${esc(f.name)}')">
+          <span class="toggle-slider"></span>
+        </label>
+      </td>
+      <td class="col-actions">${loadBtn}${delBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function fetchStatus() {
+  try {
+    const r = await fetch(API + '/api/modules/status');
+    if (r.ok) renderTable(await r.json());
+  } catch(e) {}
+}
+
+async function doLoad(path, fname) {
+  try {
+    const r = await fetch(API + '/api/modules/load', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({path})
+    });
+    const d = await r.json();
+    showToast('toast-mod', r.ok ? d.message : d.error, r.ok);
+    await new Promise(r => setTimeout(r, 500));
+    await fetchStatus();
+  } catch(e) { showToast('toast-mod', String(e), false); }
+}
+
+async function doUnload(modname, fname) {
+  const t = T[lang];
+  if (!confirm(t.confirm_unload.replace('%s', fname))) return;
+  try {
+    const r = await fetch(API + '/api/modules/unload', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({module: modname})
+    });
+    const d = await r.json();
+    showToast('toast-mod', r.ok ? d.message : d.error, r.ok);
+    await new Promise(r => setTimeout(r, 500));
+    await fetchStatus();
+  } catch(e) { showToast('toast-mod', String(e), false); }
+}
+
+async function doAutoload(path, enable, fname) {
+  try {
+    const r = await fetch(API + '/api/modules/autoload', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({path, enable})
+    });
+    const d = await r.json();
+    showToast('toast-mod', r.ok ? d.message : d.error, r.ok);
+    if (!r.ok) await fetchStatus();   // revert toggle on error
+  } catch(e) { showToast('toast-mod', String(e), false); await fetchStatus(); }
+}
+
+async function doDelete(path, fname) {
+  const t = T[lang];
+  if (!confirm(t.confirm_delete.replace('%s', fname))) return;
+  try {
+    const r = await fetch(API + '/api/modules/delete', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({path})
+    });
+    const d = await r.json();
+    showToast('toast-mod', r.ok ? d.message : d.error, r.ok);
+    await new Promise(r => setTimeout(r, 300));
+    await fetchStatus();
+  } catch(e) { showToast('toast-mod', String(e), false); }
+}
+
+async function doUpload() {
+  const fileInput = document.getElementById('mod-file');
+  const btn = document.getElementById('btn-upload');
+  const file = fileInput.files[0];
+  if (!file) return;
+  if (file.size > 1024*1024) {
+    showToast('toast-upload', 'Fil over 1 MB', false);
+    return;
+  }
+  const oldTxt = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ ...';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch(API + '/api/modules/upload', { method:'POST', body: fd });
+    const d = await r.json();
+    showToast('toast-upload', r.ok ? d.message : d.error, r.ok);
+    if (r.ok) { fileInput.value = ''; }
+    await fetchStatus();
+  } catch(e) {
+    showToast('toast-upload', String(e), false);
+  } finally {
+    btn.textContent = oldTxt;
+    btn.disabled = !fileInput.files.length;
+  }
+}
+
+async function checkForUpdate() {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch('https://api.github.com/repos/vegard1977/curb-local/releases/latest', {signal: ctrl.signal});
+    clearTimeout(tid);
+    if (!res.ok) return;
+    const {tag_name} = await res.json();
+    if (tag_name && tag_name !== APP_VERSION) {
+      const a = document.getElementById('update-ver');
+      if (a) a.textContent = tag_name;
+      const b = document.getElementById('update-banner');
+      if (b) b.style.display = '';
+    }
+  } catch(e) {}
+}
+
+applyLang(lang);
+checkForUpdate();
+fetchStatus();
+setInterval(fetchStatus, 4000);
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') fetchStatus();
+});
+</script>
+</body>
+</html>

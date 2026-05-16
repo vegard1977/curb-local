@@ -1,0 +1,20 @@
+[
+  {
+    "port":        "/dev/ttyACM0",
+    "baud":        115200,
+    "label":       "Arduino Mega",
+    "ct_offset":   18,
+    "num_ct":      16,
+    "num_temp":    2,
+    "temp_labels": ["Sikringsskap topp", "Sikringsskap bunn"]
+  },
+  {
+    "port":        "/dev/ttyUSB0",
+    "baud":        115200,
+    "label":       "ESP32",
+    "ct_offset":   34,
+    "num_ct":      6,
+    "num_temp":    0,
+    "temp_labels": []
+  }
+]

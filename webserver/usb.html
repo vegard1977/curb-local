@@ -1,0 +1,605 @@
+﻿<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>USB — Curb Energy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922; --input-bg: #0d1117;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; }
+    .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
+    .nav-brand span { color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .lang-toggle { display: flex; gap: 3px; }
+    .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
+    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+    main { max-width: 1000px; margin: 0 auto; padding: 24px 16px; width: 100%; flex: 1; }
+
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+    .section + .section { margin-top: 16px; }
+    h2 { font-size: 0.90rem; font-weight: 600; color: #fff; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+    .cards-row { display: flex; gap: 16px; align-items: flex-start; margin-top: 16px; }
+    @media (max-width: 660px) { .cards-row { flex-direction: column; } }
+    .cards-row .section { flex: 1; min-width: 0; margin-top: 0; }
+
+    .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+    @media (max-width: 500px) { .status-grid { grid-template-columns: 1fr 1fr; } }
+    .stat-label { font-size: 0.70rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; }
+    .stat-val { display: flex; align-items: center; gap: 7px; font-size: 0.88rem; font-weight: 500; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .dot.ok   { background: var(--green); box-shadow: 0 0 5px rgba(63,185,80,.5); }
+    .dot.warn { background: var(--yellow); }
+    .dot.err  { background: var(--red); }
+
+    .disk-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .disk-label { color: var(--muted); font-size: 0.70rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .disk-meta  { color: var(--muted); font-size: 0.78rem; }
+    .disk-bar   { height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .disk-fill  { height: 100%; background: var(--accent); border-radius: 4px; transition: width .4s; }
+
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.15s; }
+    .btn:hover:not(:disabled) { opacity: 0.85; }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger  { background: var(--red); color: #fff; }
+    .btn-ghost   { background: none; border: 1px solid var(--border); color: var(--text); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); opacity: 1; }
+    .actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+
+    .toast { display: none; padding: 7px 13px; border-radius: 6px; font-size: 0.80rem; font-weight: 500; }
+    .toast.ok  { display: inline-block; background: #0d2d1a; color: var(--green); border: 1px solid var(--green); }
+    .toast.err { display: inline-block; background: #2d0d0d; color: var(--red);   border: 1px solid var(--red); }
+
+    .warn-box { background: rgba(248,81,73,.10); border: 1px solid rgba(248,81,73,.25); border-radius: 6px; padding: 10px 14px; font-size: 0.82rem; color: var(--red); margin-bottom: 14px; }
+
+    .confirm-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; margin-bottom: 14px; user-select: none; }
+    .confirm-row input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); }
+
+    .toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .toggle-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 22px; cursor: pointer; transition: background .2s; }
+    .toggle-slider:before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; }
+    input:checked + .toggle-slider { background: var(--accent); }
+    input:checked + .toggle-slider:before { transform: translateX(18px); }
+    .toggle-label { font-size: 0.85rem; }
+    .toggle-hint  { font-size: 0.72rem; color: var(--muted); margin-left: 52px; }
+
+    .rec-banner { background: rgba(56,139,253,.10); border: 1px solid rgba(56,139,253,.25); border-radius: 6px; padding: 11px 15px; margin-bottom: 16px; display: flex; gap: 10px; align-items: flex-start; }
+    .rec-icon  { font-size: 1.1rem; flex-shrink: 0; }
+    .rec-title { font-size: 0.78rem; font-weight: 600; color: var(--accent); margin-bottom: 3px; }
+    .rec-text  { font-size: 0.80rem; color: var(--text); }
+
+    .file-row { display: flex; align-items: flex-start; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+    .file-row:last-of-type { border-bottom: none; }
+    .file-row input[type=checkbox] { margin-top: 3px; flex-shrink: 0; width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+    .file-row input[type=checkbox]:disabled { cursor: default; }
+    .file-info { flex: 1; }
+    .file-name { font-size: 0.85rem; font-weight: 500; color: var(--text); font-family: monospace; }
+    .file-desc { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .file-badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+    .file-badge.on-usb  { background: rgba(63,185,80,.15); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+    .file-badge.not-usb { background: rgba(139,148,158,.10); color: var(--muted); border: 1px solid var(--border); }
+
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-right: 5px; }
+    .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
+    .coffee-btn:hover { opacity: 0.85; }
+    .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
+    .kofi-btn:hover { opacity: 0.85; }
+
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 1000px; margin: 0 auto; width: 100%; }
+  </style>
+</head>
+<body>
+
+<div id="update-banner" style="display:none;background:rgba(56,139,253,0.10);border-bottom:1px solid rgba(56,139,253,0.25);padding:7px 20px;font-size:0.80rem;color:#e6edf3;text-align:center;position:relative">
+  <span data-i18n="update_avail">Ny versjon tilgjengelig:</span> <a id="update-ver" href="https://github.com/vegard1977/curb-local/releases" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600"></a>
+  <button onclick="document.getElementById('update-banner').style.display='none'" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1">×</button>
+</div>
+
+<nav>
+  <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
+  <a href="energy.html" data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html" data-i18n="nav_stat">Statistikk</a>
+  <a href="calibration.html" data-i18n="nav_cal">Kalibrering</a>
+  <a href="settings.html" data-i18n="nav_set">Innstillinger</a>
+  <a href="sysinfo.html" data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" data-i18n="nav_ser">Serial / Powerline</a>
+  <a href="usb.html" class="active" data-i18n="nav_usb">USB</a>
+  <a href="wifi.html" data-i18n="nav_wifi">WiFi</a>
+  <a href="kursliste.html" data-i18n="nav_kurs">Kursliste</a>
+  <a href="arduino.html" data-i18n="nav_ard">Arduino</a>
+  <a href="modules.html" data-i18n="nav_mod">Moduler</a>
+  <a href="cli.html" data-i18n="nav_cli">Terminal</a>
+  <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+<!-- STATUS -->
+<div class="section">
+  <h2 data-i18n="hdr_status">Status</h2>
+  <div class="status-grid">
+    <div>
+      <div class="stat-label" data-i18n="lbl_device">Enhet</div>
+      <div class="stat-val"><span class="dot" id="dot-dev"></span><span id="val-dev">—</span></div>
+    </div>
+    <div>
+      <div class="stat-label" data-i18n="lbl_mount">Montering</div>
+      <div class="stat-val"><span class="dot" id="dot-mnt"></span><span id="val-mnt">—</span></div>
+    </div>
+    <div>
+      <div class="stat-label" data-i18n="lbl_automount_lbl">Automount</div>
+      <div class="stat-val"><span class="dot" id="dot-auto"></span><span id="val-auto">—</span></div>
+    </div>
+  </div>
+  <div id="disk-section" style="display:none">
+    <div class="disk-row">
+      <span class="disk-label" data-i18n="lbl_disk">Disk</span>
+      <span class="disk-meta" id="val-disk-meta">—</span>
+    </div>
+    <div class="disk-bar"><div class="disk-fill" id="disk-fill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="cards-row">
+
+<!-- FORMAT -->
+<div class="section">
+  <h2 data-i18n="hdr_format">Formater</h2>
+  <div class="warn-box" data-i18n="warn_format">Formatering sletter ALL data på minnepinnen!</div>
+  <div style="margin-bottom:14px">
+    <label style="font-size:0.70rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:5px" data-i18n="lbl_select_dev">Velg enhet</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="fmt-dev-select" style="flex:1;background:var(--input-bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-size:0.85rem;outline:none" onchange="selectedFormatDevice=this.value;updateFormatBtn()">
+        <option value="" data-i18n="opt_no_dev">Ingen USB-enhet funnet</option>
+      </select>
+      <button onclick="fetchStatus()" title="Søk etter enheter" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:1rem;flex-shrink:0" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↻</button>
+    </div>
+    <div style="font-size:0.72rem;color:var(--muted);margin-top:4px" data-i18n="hint_only_usb">Kun USB-enheter (/dev/sd*) vises — intern flash er ikke tilgjengelig</div>
+  </div>
+  <div style="font-size:0.78rem;color:var(--muted);margin-bottom:14px">
+    <span data-i18n="lbl_filesystem">Filsystem</span>: <strong style="color:var(--text)">FAT32</strong> (vfat)
+  </div>
+  <label class="confirm-row">
+    <input type="checkbox" id="format-confirm" onchange="updateFormatBtn()">
+    <span data-i18n="confirm_format">Jeg forstår at alle data slettes</span>
+  </label>
+  <div class="actions" style="margin-top:0">
+    <button class="btn btn-danger" id="btn-format" disabled onclick="doFormat()" data-i18n="btn_format">Formater</button>
+    <span class="toast" id="toast-format"></span>
+  </div>
+</div>
+
+<!-- MOUNT & AUTOMOUNT -->
+<div class="section">
+  <h2 data-i18n="hdr_mount">Mount / Automount</h2>
+  <div class="actions" style="margin-top:0">
+    <button class="btn btn-primary" id="btn-mount"  onclick="doMount()"  data-i18n="btn_mount">Monter USB</button>
+    <button class="btn btn-ghost"   id="btn-umount" onclick="doUmount()" data-i18n="btn_umount">Demonter USB</button>
+    <button class="btn btn-ghost"   id="btn-fsck"   onclick="doFsck()"   data-i18n="btn_fsck" title="Sjekk og reparer filsystem (umountes midlertidig)">Sjekk filsystem</button>
+    <span class="toast" id="toast-mount"></span>
+  </div>
+  <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
+    <div class="toggle-row">
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggle-automount" onchange="setAutomount(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="toggle-label" data-i18n="lbl_automount_toggle">Automount ved boot</span>
+    </div>
+    <div class="toggle-hint" data-i18n="hint_automount">Laster usb-storage og sd_mod, monterer /dev/sda1 → /mnt/usb</div>
+    <div style="margin-top:8px"><span class="toast" id="toast-automount"></span></div>
+  </div>
+</div>
+
+</div><!-- .cards-row -->
+
+<!-- MIGRATION -->
+<div class="section" style="margin-top:16px">
+  <h2 data-i18n="hdr_migrate">Flytt filer til USB</h2>
+  <div class="rec-banner">
+    <div class="rec-icon">💡</div>
+    <div>
+      <div class="rec-title" data-i18n="rec_title">Anbefalt</div>
+      <div class="rec-text" data-i18n="rec_text">Flytt energihistorikk og kretsnavn til USB — sparer flash-minne og gir ubegrenset historikk!</div>
+    </div>
+  </div>
+
+  <div class="file-row">
+    <input type="checkbox" id="chk-history" value="history" checked>
+    <div class="file-info">
+      <div class="file-name" data-i18n="file_history">history.json — Energihistorikk</div>
+      <div class="file-desc" data-i18n="file_history_hint">Vokser over tid og sliter flash-celler</div>
+    </div>
+    <span class="file-badge not-usb" id="badge-history" data-i18n="not_migrated">Ikke på USB</span>
+  </div>
+
+  <div class="file-row">
+    <input type="checkbox" id="chk-circuit" value="circuit_names" checked>
+    <div class="file-info">
+      <div class="file-name" data-i18n="file_circuit">circuit-names.json — Kretsnavn</div>
+      <div class="file-desc" data-i18n="file_circuit_hint">Kun lagret i browser nå — mistes ved cache-clear</div>
+    </div>
+    <span class="file-badge not-usb" id="badge-circuit" data-i18n="not_migrated">Ikke på USB</span>
+  </div>
+
+  <div class="file-row">
+    <input type="checkbox" id="chk-daily" value="daily" checked>
+    <div class="file-info">
+      <div class="file-name" data-i18n="file_daily">daily.json — Dagens forbruk</div>
+      <div class="file-desc" data-i18n="file_daily_hint">Skrives hvert 5. minutt — 288 flash-skrivinger per dag</div>
+    </div>
+    <span class="file-badge not-usb" id="badge-daily" data-i18n="not_migrated">Ikke på USB</span>
+  </div>
+
+  <div class="file-row">
+    <input type="checkbox" id="chk-backups" value="backups" checked>
+    <div class="file-info">
+      <div class="file-name" data-i18n="file_backups">backup-* — Sikkerhetskopier</div>
+      <div class="file-desc" data-i18n="file_backups_hint">Flyttes til /mnt/usb/backups/ (nye backups etter migrering går fortsatt til /data/)</div>
+    </div>
+    <span class="file-badge not-usb" id="badge-backups" data-i18n="not_migrated">Ikke på USB</span>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="btn-migrate" onclick="doMigrate()" data-i18n="btn_migrate">Flytt valgte filer til USB</button>
+    <span class="toast" id="toast-migrate"></span>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v1.3</span></span>
+</footer>
+
+<script>
+const APP_VERSION = 'v1.3';
+const API = 'http://' + location.hostname + ':8080';
+
+const T = {
+  no: {
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering',
+    nav_set:'Innstillinger', nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi', nav_kurs:'Kursliste',
+    hdr_status:'Status',
+    lbl_device:'Enhet', lbl_mount:'Montering', lbl_automount_lbl:'Automount',
+    val_connected:'Tilkoblet', val_disconnected:'Ikke tilkoblet',
+    val_mounted:'Montert', val_unmounted:'Ikke montert',
+    val_active:'Aktiv', val_inactive:'Inaktiv',
+    lbl_disk:'Disk',
+    hdr_format:'Formater',
+    warn_format:'Formatering sletter ALL data på minnepinnen!',
+    lbl_filesystem:'Filsystem',
+    confirm_format:'Jeg forstår at alle data slettes',
+    btn_format:'Formater',
+    lbl_select_dev:'Velg enhet', opt_no_dev:'Ingen USB-enhet funnet',
+    hint_only_usb:'Kun USB-enheter (/dev/sd*) vises — intern flash er ikke tilgjengelig',
+    hdr_mount:'Mount / Automount',
+    btn_mount:'Monter USB', btn_umount:'Demonter USB', btn_fsck:'Sjekk filsystem',
+    lbl_automount_toggle:'Automount ved boot',
+    hint_automount:'Laster usb-storage og sd_mod, monterer /dev/sda1 → /mnt/usb',
+    hdr_migrate:'Flytt filer til USB',
+    rec_title:'Anbefalt',
+    rec_text:'Flytt energihistorikk og kretsnavn til USB — sparer flash-minne og gir ubegrenset historikk!',
+    file_history:'history.json — Energihistorikk',
+    file_history_hint:'Vokser over tid og sliter flash-celler',
+    file_circuit:'circuit-names.json — Kretsnavn',
+    file_circuit_hint:'Kun lagret i browser nå — mistes ved cache-clear',
+    file_daily:'daily.json — Dagens forbruk',
+    file_daily_hint:'Skrives hvert 5. minutt — 288 flash-skrivinger per dag',
+    file_backups:'backup-* — Sikkerhetskopier',
+    file_backups_hint:'Flyttes til /mnt/usb/backups/ (nye backups etter migrering går fortsatt til /data/)',
+    migrated:'✓ På USB', not_migrated:'Ikke på USB',
+    btn_migrate:'Flytt valgte filer til USB',
+    credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
+    update_avail:'Ny versjon tilgjengelig:',
+  },
+  en: {
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration',
+    nav_set:'Settings', nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi', nav_kurs:'Circuit list',
+    hdr_status:'Status',
+    lbl_device:'Device', lbl_mount:'Mount', lbl_automount_lbl:'Automount',
+    val_connected:'Connected', val_disconnected:'Not connected',
+    val_mounted:'Mounted', val_unmounted:'Not mounted',
+    val_active:'Active', val_inactive:'Inactive',
+    lbl_disk:'Disk',
+    hdr_format:'Format',
+    warn_format:'Formatting will erase ALL data on the drive!',
+    lbl_filesystem:'Filesystem',
+    confirm_format:'I understand all data will be erased',
+    btn_format:'Format',
+    lbl_select_dev:'Select device', opt_no_dev:'No USB device found',
+    hint_only_usb:'Only USB devices (/dev/sd*) are shown — internal flash is not available',
+    hdr_mount:'Mount / Automount',
+    btn_mount:'Mount USB', btn_umount:'Unmount USB', btn_fsck:'Check filesystem',
+    lbl_automount_toggle:'Automount at boot',
+    hint_automount:'Loads usb-storage and sd_mod, mounts /dev/sda1 → /mnt/usb',
+    hdr_migrate:'Move files to USB',
+    rec_title:'Recommended',
+    rec_text:'Move energy history and circuit names to USB — saves flash storage and enables unlimited history!',
+    file_history:'history.json — Energy history',
+    file_history_hint:'Grows over time and wears flash cells',
+    file_circuit:'circuit-names.json — Circuit names',
+    file_circuit_hint:'Currently only in browser — lost on cache clear',
+    file_daily:'daily.json — Today\'s consumption',
+    file_daily_hint:'Written every 5 minutes — 288 flash writes per day',
+    file_backups:'backup-* — Backup directories',
+    file_backups_hint:'Moved to /mnt/usb/backups/ (new backups after migration still go to /data/)',
+    migrated:'✓ On USB', not_migrated:'Not on USB',
+    btn_migrate:'Move selected files to USB',
+    credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
+    update_avail:'New version available:',
+  }
+};
+
+let lang = localStorage.getItem('curb_lang') || 'no';
+let selectedFormatDevice = '';
+
+function applyLang(l) {
+  lang = l;
+  localStorage.setItem('curb_lang', l);
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (T[l][k] !== undefined) el.textContent = T[l][k];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+  if (lastData) updateUI(lastData);
+}
+
+function fmtBytes(kb) {
+  if (kb >= 1024*1024) return (kb/1024/1024).toFixed(1) + ' GB';
+  if (kb >= 1024)      return (kb/1024).toFixed(1) + ' MB';
+  return kb + ' KB';
+}
+
+let lastData = null;
+
+function updateUI(d) {
+  lastData = d;
+  const t = T[lang];
+
+  document.getElementById('dot-dev').className = 'dot ' + (d.device_present ? 'ok' : 'err');
+  document.getElementById('val-dev').textContent = d.device_present ? t.val_connected : t.val_disconnected;
+
+  document.getElementById('dot-mnt').className = 'dot ' + (d.mounted ? 'ok' : (d.device_present ? 'warn' : 'err'));
+  document.getElementById('val-mnt').textContent = d.mounted ? t.val_mounted : t.val_unmounted;
+
+  document.getElementById('dot-auto').className = 'dot ' + (d.automount ? 'ok' : '');
+  document.getElementById('val-auto').textContent = d.automount ? t.val_active : t.val_inactive;
+
+  document.getElementById('toggle-automount').checked = d.automount;
+
+  const diskSec = document.getElementById('disk-section');
+  if (d.mounted && d.total_kb > 0) {
+    diskSec.style.display = '';
+    const pct = Math.round(d.used_kb / d.total_kb * 100);
+    document.getElementById('disk-fill').style.width = pct + '%';
+    document.getElementById('val-disk-meta').textContent =
+      fmtBytes(d.used_kb) + ' / ' + fmtBytes(d.total_kb) + ' (' + pct + '%)';
+  } else {
+    diskSec.style.display = 'none';
+  }
+
+  const setMig = (badgeId, chkId, migrated) => {
+    const b = document.getElementById(badgeId);
+    const c = document.getElementById(chkId);
+    if (migrated) {
+      b.className = 'file-badge on-usb'; b.textContent = t.migrated;
+      c.checked = false; c.disabled = true;
+    } else {
+      b.className = 'file-badge not-usb'; b.textContent = t.not_migrated;
+      c.disabled = false;
+    }
+  };
+  setMig('badge-history',  'chk-history',  d.migrations && d.migrations.history);
+  setMig('badge-circuit',  'chk-circuit',  d.migrations && d.migrations.circuit_names);
+  setMig('badge-daily',    'chk-daily',    d.migrations && d.migrations.daily);
+  setMig('badge-backups',  'chk-backups',  d.migrations && d.migrations.backups);
+
+  document.getElementById('btn-mount').disabled  = d.mounted || !d.device_present;
+  document.getElementById('btn-umount').disabled = !d.mounted;
+  document.getElementById('btn-migrate').disabled = !d.mounted;
+
+  // Populer enhet-dropdown
+  const sel = document.getElementById('fmt-dev-select');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  const devs = d.usb_devices || [];
+  if (devs.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = T[lang].opt_no_dev || 'Ingen USB-enhet funnet';
+    sel.appendChild(opt);
+  } else {
+    devs.forEach(dev => {
+      const opt = document.createElement('option');
+      opt.value = dev.dev;
+      opt.textContent = dev.dev + ' — ' + dev.model + ' (' + dev.size_gb + ' GB)';
+      sel.appendChild(opt);
+    });
+    sel.selectedIndex = 0;
+    selectedFormatDevice = devs[0].dev;
+  }
+  sel.disabled = devs.length === 0;
+  if (devs.length === 0) selectedFormatDevice = '';
+  updateFormatBtn();
+}
+
+async function fetchStatus() {
+  try {
+    const r = await fetch(API + '/api/usb/status');
+    if (r.ok) updateUI(await r.json());
+  } catch(e) {}
+}
+
+function showToast(id, msg, ok) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'toast ' + (ok ? 'ok' : 'err');
+  clearTimeout(el._tid);
+  el._tid = setTimeout(() => { el.className = 'toast'; }, 4000);
+}
+
+function updateFormatBtn() {
+  const chk = document.getElementById('format-confirm');
+  document.getElementById('btn-format').disabled = !chk.checked || !selectedFormatDevice;
+}
+
+async function doFormat() {
+  const t = T[lang];
+  const dev = selectedFormatDevice;
+  if (!dev) { showToast('toast-format', t.opt_no_dev || 'Ingen enhet valgt', false); return; }
+  if (!confirm(dev + '\n\n' + t.warn_format + '\n\n' + t.confirm_format + '?')) return;
+  const btn = document.getElementById('btn-format');
+  const chk = document.getElementById('format-confirm');
+  btn.disabled = true;
+  btn.textContent = '⏳ ' + (t.btn_format || 'Formater') + '...';
+  try {
+    const r = await fetch(API + '/api/usb/format', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({confirm:true, device:dev})
+    });
+    const d = await r.json();
+    showToast('toast-format', r.ok ? d.message : d.error, r.ok);
+    if (r.ok) chk.checked = false;
+    await new Promise(r => setTimeout(r, 1500));
+    await fetchStatus();
+  } catch(e) {
+    showToast('toast-format', String(e), false);
+  } finally {
+    btn.textContent = t.btn_format || 'Formater';
+    updateFormatBtn();
+  }
+}
+
+async function doMount() {
+  try {
+    const r = await fetch(API + '/api/usb/mount', {method:'POST'});
+    const d = await r.json();
+    showToast('toast-mount', r.ok ? d.message : d.error, r.ok);
+    await fetchStatus();
+  } catch(e) { showToast('toast-mount', String(e), false); }
+}
+
+async function doUmount() {
+  try {
+    const r = await fetch(API + '/api/usb/umount', {method:'POST'});
+    const d = await r.json();
+    showToast('toast-mount', r.ok ? d.message : d.error, r.ok);
+    await new Promise(r => setTimeout(r, 1500));
+    await fetchStatus();
+  } catch(e) { showToast('toast-mount', String(e), false); }
+}
+
+async function doFsck() {
+  const btn = document.getElementById('btn-fsck');
+  btn.disabled = true;
+  const oldTxt = btn.textContent;
+  btn.textContent = 'Sjekker...';
+  try {
+    const r = await fetch(API + '/api/usb/fsck', {method:'POST'});
+    const d = await r.json();
+    let msg = r.ok ? d.message : d.error;
+    if (d.output) msg += ' — ' + d.output.split('\n').slice(0,3).join(' | ');
+    showToast('toast-mount', msg, r.ok);
+    await new Promise(r => setTimeout(r, 1500));
+    await fetchStatus();
+  } catch(e) {
+    showToast('toast-mount', String(e), false);
+  } finally {
+    btn.textContent = oldTxt;
+    btn.disabled = false;
+  }
+}
+
+async function setAutomount(enable) {
+  try {
+    const r = await fetch(API + '/api/usb/automount', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({enable})
+    });
+    const d = await r.json();
+    showToast('toast-automount', r.ok ? d.message : d.error, r.ok);
+    await fetchStatus();
+  } catch(e) { showToast('toast-automount', String(e), false); }
+}
+
+async function doMigrate() {
+  const files = [];
+  if (!document.getElementById('chk-history').disabled && document.getElementById('chk-history').checked)
+    files.push('history');
+  if (!document.getElementById('chk-circuit').disabled && document.getElementById('chk-circuit').checked)
+    files.push('circuit_names');
+  if (!document.getElementById('chk-daily').disabled && document.getElementById('chk-daily').checked)
+    files.push('daily');
+  if (!document.getElementById('chk-backups').disabled && document.getElementById('chk-backups').checked)
+    files.push('backups');
+  if (files.length === 0) { showToast('toast-migrate', T[lang].not_migrated || 'Ingen filer valgt', false); return; }
+  try {
+    const r = await fetch(API + '/api/usb/migrate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({files})
+    });
+    const d = await r.json();
+    showToast('toast-migrate', r.ok ? 'OK — ' + Object.keys(d.results || {}).join(', ') : d.error, r.ok);
+    if (r.ok) await fetchStatus();
+  } catch(e) { showToast('toast-migrate', String(e), false); }
+}
+
+async function checkForUpdate() {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch('https://api.github.com/repos/vegard1977/curb-local/releases/latest', {signal: ctrl.signal});
+    clearTimeout(tid);
+    if (!res.ok) return;
+    const {tag_name} = await res.json();
+    if (tag_name && tag_name !== APP_VERSION) {
+      const a = document.getElementById('update-ver');
+      if (a) a.textContent = tag_name;
+      const b = document.getElementById('update-banner');
+      if (b) b.style.display = '';
+    }
+  } catch(e) {}
+}
+
+applyLang(lang);
+checkForUpdate();
+fetchStatus();
+setInterval(fetchStatus, 5000);
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') fetchStatus();
+});
+</script>
+</body>
+</html>

@@ -482,6 +482,18 @@ local function write_sysinfo()
     info.sampler_running = false
   end
 
+  -- Serial-reader status: arduino.json fersk (siste 30 sek)
+  info.serial_reader_running = false
+  local af = io.open('/tmp/www/arduino.json', 'r')
+  if af then
+    local s = af:read('*all'); af:close()
+    local ok, d = pcall(json.decode, s)
+    if ok and type(d) == 'table' and d.ts then
+      info.serial_reader_running = (os.time() - d.ts) < 30
+      info.serial_reader_age_secs = os.time() - d.ts
+    end
+  end
+
   -- Lagringsplass (/data og /data/sd)
   info.disk_data = disk_usage('/data')
   info.disk_sd   = disk_usage('/data/sd')

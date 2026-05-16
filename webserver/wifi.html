@@ -1,0 +1,521 @@
+﻿<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>WiFi — Curb Energy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922; --input-bg: #0d1117;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; }
+    .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
+    .nav-brand span { color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .lang-toggle { display: flex; gap: 3px; }
+    .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
+    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+    main { max-width: 1000px; margin: 0 auto; padding: 24px 16px; width: 100%; flex: 1; }
+
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+    .section + .section { margin-top: 16px; }
+    h2 { font-size: 0.90rem; font-weight: 600; color: #fff; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+    .cards-row { display: flex; gap: 16px; align-items: flex-start; margin-top: 16px; }
+    @media (max-width: 660px) { .cards-row { flex-direction: column; } }
+    .cards-row .section { flex: 1; min-width: 0; margin-top: 0; }
+
+    .status-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+    @media (max-width: 600px) { .status-grid { grid-template-columns: 1fr 1fr; } }
+    .stat-label { font-size: 0.70rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; }
+    .stat-val { display: flex; align-items: center; gap: 7px; font-size: 0.88rem; font-weight: 500; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .dot.ok   { background: var(--green); box-shadow: 0 0 5px rgba(63,185,80,.5); }
+    .dot.warn { background: var(--yellow); }
+    .dot.err  { background: var(--red); }
+
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.15s; }
+    .btn:hover:not(:disabled) { opacity: 0.85; }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger  { background: var(--red); color: #fff; }
+    .btn-ghost   { background: none; border: 1px solid var(--border); color: var(--text); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); opacity: 1; }
+    .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+    .actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+
+    .toast { display: none; padding: 7px 13px; border-radius: 6px; font-size: 0.80rem; font-weight: 500; }
+    .toast.ok  { display: inline-block; background: #0d2d1a; color: var(--green); border: 1px solid var(--green); }
+    .toast.err { display: inline-block; background: #2d0d0d; color: var(--red);   border: 1px solid var(--red); }
+
+    .toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .toggle-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 22px; cursor: pointer; transition: background .2s; }
+    .toggle-slider:before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; }
+    input:checked + .toggle-slider { background: var(--accent); }
+    input:checked + .toggle-slider:before { transform: translateX(18px); }
+    .toggle-label { font-size: 0.85rem; }
+    .toggle-hint  { font-size: 0.72rem; color: var(--muted); margin-left: 52px; }
+
+    /* Signal bars */
+    .bars { display: flex; align-items: flex-end; gap: 2px; height: 18px; flex-shrink: 0; }
+    .bar { width: 5px; border-radius: 2px; background: var(--border); }
+    .bar.lit { background: var(--green); }
+    .bar.lit.warn { background: var(--yellow); }
+
+    /* Network list */
+    .net-list { display: flex; flex-direction: column; gap: 6px; min-height: 40px; }
+    .net-card { display: flex; align-items: center; gap: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; cursor: pointer; transition: border-color 0.15s; }
+    .net-card:hover { border-color: var(--accent); }
+    .net-card.selected { border-color: var(--accent); background: rgba(56,139,253,0.06); }
+    .net-ssid { flex: 1; font-size: 0.85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .net-sec { font-size: 0.70rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
+    .sec-open { background: rgba(139,148,158,.12); color: var(--muted);  border: 1px solid var(--border); }
+    .sec-wpa  { background: rgba(63,185,80,.12);  color: var(--green);   border: 1px solid rgba(63,185,80,.3); }
+    .net-pct  { font-size: 0.72rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+
+    /* Connect form */
+    .field-label { font-size: 0.70rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 5px; }
+    .text-input { width: 100%; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 8px 10px; font-size: 0.85rem; outline: none; transition: border-color .15s; }
+    .text-input:focus { border-color: var(--accent); }
+    .field { margin-bottom: 14px; }
+    .pw-wrap { display: flex; gap: 6px; }
+    .pw-wrap .text-input { flex: 1; }
+    .eye-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 0 10px; cursor: pointer; font-size: 1rem; transition: all .15s; flex-shrink: 0; }
+    .eye-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .info-box { background: rgba(56,139,253,.08); border: 1px solid rgba(56,139,253,.2); border-radius: 6px; padding: 10px 14px; font-size: 0.80rem; color: var(--text); margin-bottom: 14px; }
+    .info-box b { color: var(--accent); }
+
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-right: 5px; }
+    .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
+    .coffee-btn:hover { opacity: 0.85; }
+    .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
+    .kofi-btn:hover { opacity: 0.85; }
+
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 1000px; margin: 0 auto; width: 100%; }
+  </style>
+</head>
+<body>
+
+<div id="update-banner" style="display:none;background:rgba(56,139,253,0.10);border-bottom:1px solid rgba(56,139,253,0.25);padding:7px 20px;font-size:0.80rem;color:#e6edf3;text-align:center;position:relative">
+  <span data-i18n="update_avail">Ny versjon tilgjengelig:</span> <a id="update-ver" href="https://github.com/vegard1977/curb-local/releases" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600"></a>
+  <button onclick="document.getElementById('update-banner').style.display='none'" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1">×</button>
+</div>
+
+<nav>
+  <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
+  <a href="energy.html"      data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html"       data-i18n="nav_stat">Statistikk</a>
+  <a href="calibration.html" data-i18n="nav_cal">Kalibrering</a>
+  <a href="settings.html"    data-i18n="nav_set">Innstillinger</a>
+  <a href="sysinfo.html"     data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" data-i18n="nav_ser">Serial / Powerline</a>
+  <a href="usb.html"         data-i18n="nav_usb">USB</a>
+  <a href="wifi.html" class="active" data-i18n="nav_wifi">WiFi</a>
+  <a href="kursliste.html" data-i18n="nav_kurs">Kursliste</a>
+  <a href="arduino.html" data-i18n="nav_ard">Arduino</a>
+  <a href="modules.html" data-i18n="nav_mod">Moduler</a>
+  <a href="cli.html" data-i18n="nav_cli">Terminal</a>
+  <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+<!-- STATUS -->
+<div class="section">
+  <h2 data-i18n="hdr_status">Status</h2>
+  <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px" data-i18n="adapter_info">Støttet adapter: Atheros AR9271 (USB) — driver: ath9k_htc, grensesnitt: wlan0</p>
+  <div class="status-grid">
+    <div>
+      <div class="stat-label" data-i18n="lbl_module">Modul</div>
+      <div class="stat-val"><span class="dot" id="dot-module"></span><span id="val-module">—</span></div>
+    </div>
+    <div>
+      <div class="stat-label" data-i18n="lbl_iface">Grensesnitt</div>
+      <div class="stat-val"><span class="dot" id="dot-iface"></span><span id="val-iface">—</span></div>
+    </div>
+    <div>
+      <div class="stat-label" data-i18n="lbl_conn">Tilkobling</div>
+      <div class="stat-val"><span class="dot" id="dot-conn"></span><span id="val-conn">—</span></div>
+    </div>
+    <div>
+      <div class="stat-label">IP</div>
+      <div class="stat-val" id="val-ip" style="font-size:0.82rem">—</div>
+    </div>
+  </div>
+  <div id="signal-row" style="display:none;display:flex;align-items:center;gap:10px">
+    <div class="stat-label" style="margin:0" data-i18n="lbl_signal">Signal</div>
+    <div class="bars" id="signal-bars"></div>
+    <span id="signal-pct" style="font-size:0.78rem;color:var(--muted)"></span>
+  </div>
+</div>
+
+<div class="cards-row">
+
+<!-- SKANN -->
+<div class="section">
+  <h2 data-i18n="hdr_scan">Skann nettverk</h2>
+  <div class="actions" style="margin-top:0;margin-bottom:14px">
+    <button class="btn btn-ghost" id="btn-scan" onclick="doScan()" data-i18n="btn_scan">Skann</button>
+    <span class="toast" id="toast-scan"></span>
+  </div>
+  <div class="net-list" id="net-list">
+    <div style="color:var(--muted);font-size:0.82rem" data-i18n="hint_scan">Trykk Skann for å søke etter nettverk</div>
+  </div>
+</div>
+
+<!-- KOBLE TIL -->
+<div class="section">
+  <h2 data-i18n="hdr_connect">Koble til</h2>
+
+  <div class="field">
+    <label class="field-label" data-i18n="lbl_ssid">Nettverksnavn (SSID)</label>
+    <input class="text-input" id="inp-ssid" type="text" autocomplete="off" placeholder="MinRuter" oninput="onSsidChange()">
+  </div>
+
+  <div class="field" id="pw-section">
+    <label class="field-label" data-i18n="lbl_pw">Passord</label>
+    <div class="pw-wrap">
+      <input class="text-input" id="inp-pw" type="password" autocomplete="current-password" placeholder="••••••••">
+      <button class="eye-btn" onclick="togglePw()" title="Vis/skjul passord">👁</button>
+    </div>
+  </div>
+
+  <div class="actions" style="margin-top:0">
+    <button class="btn btn-primary" id="btn-connect" onclick="doConnect()" data-i18n="btn_connect">Koble til</button>
+    <button class="btn btn-danger"  id="btn-disconnect" onclick="doDisconnect()" data-i18n="btn_disconnect">Koble fra</button>
+    <span class="toast" id="toast-connect"></span>
+  </div>
+</div>
+
+</div><!-- .cards-row -->
+
+<!-- AUTOSTART -->
+<div class="section" style="margin-top:16px">
+  <h2 data-i18n="hdr_autostart">Autostart ved boot</h2>
+  <div class="info-box" data-i18n="info_autostart">
+    Laster <b>ath9k_htc</b>-modulen, venter på wlan0, starter wpa_supplicant og henter IP via DHCP.
+  </div>
+  <div class="toggle-row">
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggle-autostart" onchange="setAutostart(this.checked)">
+      <span class="toggle-slider"></span>
+    </label>
+    <span class="toggle-label" data-i18n="lbl_autostart_toggle">Koble til WiFi automatisk ved oppstart</span>
+  </div>
+  <div class="toggle-hint" data-i18n="hint_autostart">Skriver /etc/init.d/S51wifi — krever lagret nettverkskonfig</div>
+  <div style="margin-top:8px"><span class="toast" id="toast-autostart"></span></div>
+</div>
+
+</main>
+
+<footer>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v1.3</span></span>
+</footer>
+
+<script>
+const APP_VERSION = 'v1.3';
+const API = 'http://' + location.hostname + ':8080';
+
+const T = {
+  no: {
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering',
+    nav_set:'Innstillinger', nav_sys:'System', nav_ser:'Serial / Powerline',
+    nav_usb:'USB', nav_wifi:'WiFi', nav_kurs:'Kursliste',
+    hdr_status:'Status',
+    adapter_info:'Støttet adapter: Atheros AR9271 (USB) — driver: ath9k_htc, grensesnitt: wlan0',
+    lbl_module:'Modul', lbl_iface:'Grensesnitt', lbl_conn:'Tilkobling', lbl_signal:'Signal',
+    val_loaded:'Lastet', val_not_loaded:'Ikke lastet',
+    val_up:'Oppe', val_down:'Nede', val_missing:'Ikke funnet',
+    val_connected:'Tilkoblet', val_not_connected:'Ikke tilkoblet',
+    hdr_scan:'Skann nettverk',
+    btn_scan:'Skann', scanning:'Skanner...', no_networks:'Ingen nettverk funnet',
+    hint_scan:'Trykk Skann for å søke etter nettverk',
+    sec_open:'Åpen',
+    hdr_connect:'Koble til',
+    lbl_ssid:'Nettverksnavn (SSID)', lbl_pw:'Passord',
+    btn_connect:'Koble til', btn_disconnect:'Koble fra',
+    hdr_autostart:'Autostart ved boot',
+    info_autostart:'Laster ath9k_htc-modulen, venter på wlan0, starter wpa_supplicant og henter IP via DHCP.',
+    lbl_autostart_toggle:'Koble til WiFi automatisk ved oppstart',
+    hint_autostart:'Skriver /etc/init.d/S51wifi — krever lagret nettverkskonfig',
+    credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
+    update_avail:'Ny versjon tilgjengelig:',
+  },
+  en: {
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration',
+    nav_set:'Settings', nav_sys:'System', nav_ser:'Serial / Powerline',
+    nav_usb:'USB', nav_wifi:'WiFi', nav_kurs:'Circuit list',
+    hdr_status:'Status',
+    adapter_info:'Supported adapter: Atheros AR9271 (USB) — driver: ath9k_htc, interface: wlan0',
+    lbl_module:'Module', lbl_iface:'Interface', lbl_conn:'Connection', lbl_signal:'Signal',
+    val_loaded:'Loaded', val_not_loaded:'Not loaded',
+    val_up:'Up', val_down:'Down', val_missing:'Not found',
+    val_connected:'Connected', val_not_connected:'Not connected',
+    hdr_scan:'Scan networks',
+    btn_scan:'Scan', scanning:'Scanning...', no_networks:'No networks found',
+    hint_scan:'Press Scan to search for networks',
+    sec_open:'Open',
+    hdr_connect:'Connect',
+    lbl_ssid:'Network name (SSID)', lbl_pw:'Password',
+    btn_connect:'Connect', btn_disconnect:'Disconnect',
+    hdr_autostart:'Autostart at boot',
+    info_autostart:'Loads the ath9k_htc module, waits for wlan0, starts wpa_supplicant and gets IP via DHCP.',
+    lbl_autostart_toggle:'Connect to WiFi automatically at boot',
+    hint_autostart:'Writes /etc/init.d/S51wifi — requires saved network config',
+    credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
+    update_avail:'New version available:',
+  }
+};
+
+let lang = localStorage.getItem('curb_lang') || 'no';
+let lastStatus = null;
+let selectedSecurity = 'WPA2';
+
+function applyLang(l) {
+  lang = l;
+  localStorage.setItem('curb_lang', l);
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (T[l][k] !== undefined) el.textContent = T[l][k];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+}
+
+function renderBars(el, pct) {
+  const thresholds = [25, 50, 75, 100];
+  const heights    = [5, 9, 13, 18];
+  el.innerHTML = thresholds.map((thr, i) => {
+    const lit = pct >= thr;
+    const cls = lit ? (pct < 40 ? 'bar lit warn' : 'bar lit') : 'bar';
+    return `<div class="${cls}" style="height:${heights[i]}px"></div>`;
+  }).join('');
+}
+
+function updateUI(d) {
+  lastStatus = d;
+  const t = T[lang];
+
+  // Module
+  const modOk = d.module_loaded;
+  document.getElementById('dot-module').className = 'dot ' + (modOk ? 'ok' : 'warn');
+  document.getElementById('val-module').textContent = modOk ? t.val_loaded : t.val_not_loaded;
+
+  // Interface
+  const present = d.present;
+  const up = d.up;
+  document.getElementById('dot-iface').className = 'dot ' + (!present ? 'err' : up ? 'ok' : 'warn');
+  document.getElementById('val-iface').textContent = !present ? t.val_missing : up ? t.val_up : t.val_down;
+
+  // Connection
+  const ssid = d.ssid || '';
+  document.getElementById('dot-conn').className = 'dot ' + (ssid ? 'ok' : up ? 'warn' : '');
+  document.getElementById('val-conn').textContent = ssid || t.val_not_connected;
+
+  // IP
+  document.getElementById('val-ip').textContent = d.ip || '—';
+
+  // Signal
+  const sigRow = document.getElementById('signal-row');
+  if (ssid && d.signal_pct >= 0) {
+    sigRow.style.display = 'flex';
+    renderBars(document.getElementById('signal-bars'), d.signal_pct);
+    document.getElementById('signal-pct').textContent = d.signal_pct + '%';
+  } else {
+    sigRow.style.display = 'none';
+  }
+
+  // Autostart
+  document.getElementById('toggle-autostart').checked = !!d.autostart;
+
+  // Buttons
+  document.getElementById('btn-scan').disabled      = !present;
+  document.getElementById('btn-connect').disabled   = !present;
+  document.getElementById('btn-disconnect').disabled = !ssid;
+}
+
+async function fetchStatus() {
+  try {
+    const r = await fetch(API + '/api/wifi/status');
+    if (r.ok) updateUI(await r.json());
+  } catch(e) {}
+}
+
+function showToast(id, msg, ok) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'toast ' + (ok ? 'ok' : 'err');
+  clearTimeout(el._tid);
+  el._tid = setTimeout(() => { el.className = 'toast'; }, 5000);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function doScan() {
+  const btn = document.getElementById('btn-scan');
+  const list = document.getElementById('net-list');
+  const t = T[lang];
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = '⏳ ' + t.scanning;
+  list.innerHTML = `<div style="color:var(--muted);font-size:0.82rem;padding:8px 0">${t.scanning}</div>`;
+  try {
+    const r = await fetch(API + '/api/wifi/scan', {method:'POST'});
+    const d = await r.json();
+    if (!r.ok) { showToast('toast-scan', d.error, false); list.innerHTML = ''; return; }
+    renderNetworks(d.networks || []);
+  } catch(e) {
+    showToast('toast-scan', String(e), false);
+    list.innerHTML = '';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+function renderNetworks(nets) {
+  const list = document.getElementById('net-list');
+  const t = T[lang];
+  if (nets.length === 0) {
+    list.innerHTML = `<div style="color:var(--muted);font-size:0.82rem;padding:8px 0">${t.no_networks}</div>`;
+    return;
+  }
+  nets.sort((a, b) => b.signal - a.signal);
+  list.innerHTML = '';
+  nets.forEach(net => {
+    const isOpen = net.security === 'open';
+    const card = document.createElement('div');
+    card.className = 'net-card';
+    card.innerHTML = `
+      <div class="bars"></div>
+      <div class="net-ssid">${escHtml(net.ssid)}</div>
+      <span class="net-pct">${net.signal}%</span>
+      <span class="net-sec ${isOpen ? 'sec-open' : 'sec-wpa'}">${isOpen ? t.sec_open : net.security}</span>
+    `;
+    renderBars(card.querySelector('.bars'), net.signal);
+    card.addEventListener('click', () => selectNetwork(net.ssid, net.security, card));
+    list.appendChild(card);
+  });
+}
+
+function selectNetwork(ssid, security, card) {
+  document.querySelectorAll('.net-card').forEach(c => c.classList.remove('selected'));
+  if (card) card.classList.add('selected');
+  document.getElementById('inp-ssid').value = ssid;
+  selectedSecurity = security;
+  document.getElementById('pw-section').style.display = (security === 'open') ? 'none' : '';
+  document.getElementById('inp-ssid').dispatchEvent(new Event('input'));
+}
+
+function onSsidChange() {
+  // Keep pw-section visible state unless we know it's open
+}
+
+function togglePw() {
+  const el = document.getElementById('inp-pw');
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+async function doConnect() {
+  const ssid = document.getElementById('inp-ssid').value.trim();
+  const pw   = document.getElementById('inp-pw').value;
+  const t = T[lang];
+  if (!ssid) { showToast('toast-connect', 'SSID mangler', false); return; }
+  const btn = document.getElementById('btn-connect');
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = '⏳ ...';
+  try {
+    const r = await fetch(API + '/api/wifi/connect', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ssid, password: pw})
+    });
+    const d = await r.json();
+    showToast('toast-connect', r.ok ? d.message : d.error, r.ok);
+    if (r.ok) {
+      // Poll status after wpa_supplicant + udhcpc have had time to connect
+      setTimeout(fetchStatus, 6000);
+      setTimeout(fetchStatus, 12000);
+    }
+  } catch(e) { showToast('toast-connect', String(e), false); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+}
+
+async function doDisconnect() {
+  try {
+    const r = await fetch(API + '/api/wifi/disconnect', {method:'POST'});
+    const d = await r.json();
+    showToast('toast-connect', r.ok ? d.message : d.error, r.ok);
+    if (r.ok) await fetchStatus();
+  } catch(e) { showToast('toast-connect', String(e), false); }
+}
+
+async function setAutostart(enable) {
+  try {
+    const r = await fetch(API + '/api/wifi/autostart', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({enable})
+    });
+    const d = await r.json();
+    showToast('toast-autostart', r.ok ? d.message : d.error, r.ok);
+    if (r.ok) await fetchStatus();
+  } catch(e) { showToast('toast-autostart', String(e), false); }
+}
+
+async function checkForUpdate() {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch('https://api.github.com/repos/vegard1977/curb-local/releases/latest', {signal: ctrl.signal});
+    clearTimeout(tid);
+    if (!res.ok) return;
+    const {tag_name} = await res.json();
+    if (tag_name && tag_name !== APP_VERSION) {
+      const a = document.getElementById('update-ver');
+      if (a) a.textContent = tag_name;
+      const b = document.getElementById('update-banner');
+      if (b) b.style.display = '';
+    }
+  } catch(e) {}
+}
+
+applyLang(lang);
+checkForUpdate();
+fetchStatus();
+setInterval(fetchStatus, 8000);
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') fetchStatus();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arduino — Curb Energy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Nav ─────────────────────────────────────────────────────────────── */
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; overflow-x: auto; }
+    .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
+    .nav-brand span { color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; padding-left: 10px; }
+    #dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background 0.3s; }
+    #dot.live  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    #dot.stale { background: var(--yellow); }
+    #dot.err   { background: var(--red); }
+    #dot-text { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+    .lang-toggle { display: flex; gap: 3px; }
+    .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
+    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+    .support-btns { display: flex; gap: 8px; align-items: center; }
+    .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
+    .coffee-btn:hover { opacity: 0.85; }
+    .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
+    .kofi-btn:hover { opacity: 0.85; }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    main { max-width: 1000px; margin: 0 auto; padding: 20px 16px; width: 100%; flex: 1; }
+
+    /* ── Temperaturkort ──────────────────────────────────────────────────── */
+    .temp-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .temp-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; min-width: 150px; flex: 1; max-width: 220px; transition: border-color 0.3s; }
+    .temp-card.ok   { border-color: rgba(63,185,80,.35);  background: linear-gradient(135deg, rgba(63,185,80,.10) 0%, rgba(63,185,80,.02) 100%); }
+    .temp-card.warm { border-color: rgba(210,153,34,.45); background: linear-gradient(135deg, rgba(210,153,34,.12) 0%, rgba(210,153,34,.03) 100%); }
+    .temp-card.hot  { border-color: rgba(248,81,73,.50);  background: linear-gradient(135deg, rgba(248,81,73,.14) 0%, rgba(248,81,73,.03) 100%); }
+    .temp-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .temp-val { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+    .temp-val.ok   { color: var(--green); }
+    .temp-val.warm { color: var(--yellow); }
+    .temp-val.hot  { color: var(--red); }
+    .temp-val.null { color: var(--muted); font-size: 1.3rem; }
+    .temp-unit { font-size: 1rem; font-weight: 400; color: var(--muted); margin-left: 2px; }
+    .temp-sub { font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
+    .temp-delta { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Device-seksjon ──────────────────────────────────────────────────── */
+    .dev-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+    .dev-hdr { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: linear-gradient(90deg, rgba(56,139,253,.18) 0%, rgba(56,139,253,.04) 100%); }
+    .dev-name { font-size: 0.80rem; font-weight: 600; color: #e6edf3; }
+    .dev-port { font-size: 0.70rem; color: var(--muted); font-family: monospace; }
+    .dev-total { font-size: 0.82rem; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+    /* ── CT-rader ────────────────────────────────────────────────────────── */
+    .ct-list { padding: 4px 0; }
+    .ct-row { display: grid; grid-template-columns: 32px 1fr minmax(40px, 2fr) 58px; gap: 8px; align-items: center; padding: 5px 16px; }
+    .ct-row:hover { background: rgba(255,255,255,.025); }
+    .ct-num { font-size: 0.68rem; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+    .ct-name { font-size: 0.76rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ct-name.off { color: var(--muted); }
+    .cbar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .cbar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.5s ease; }
+    .ct-row.off .cbar-fill { background: var(--border); }
+    .ct-a { font-size: 0.76rem; font-variant-numeric: tabular-nums; color: var(--text); text-align: right; white-space: nowrap; }
+    .ct-row.off .ct-a { color: var(--muted); }
+
+    /* ── Ingen data ───────────────────────────────────────────────────────── */
+    .no-data { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 0.88rem; }
+
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 1000px; margin: 0 auto; width: 100%; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
+  <a href="energy.html" data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html" data-i18n="nav_stat">Statistikk</a>
+  <a href="calibration.html" data-i18n="nav_cal">Kalibrering</a>
+  <a href="settings.html" data-i18n="nav_set">Innstillinger</a>
+  <a href="sysinfo.html" data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" data-i18n="nav_ser">Serial / Powerline</a>
+  <a href="usb.html" data-i18n="nav_usb">USB</a>
+  <a href="wifi.html" data-i18n="nav_wifi">WiFi</a>
+  <a href="kursliste.html" data-i18n="nav_kurs">Kursliste</a>
+  <a href="arduino.html" class="active" data-i18n="nav_ard">Arduino</a>
+  <a href="modules.html" data-i18n="nav_mod">Moduler</a>
+  <a href="cli.html" data-i18n="nav_cli">Terminal</a>
+  <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
+    <div id="dot"></div>
+    <span id="dot-text"></span>
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div id="temp-grid" class="temp-grid"></div>
+  <div id="devices"></div>
+  <div id="no-data" class="no-data" style="display:none" data-i18n="no_data">
+    Ingen data fra Arduino — venter på serial-reader.lua&hellip;
+  </div>
+
+  <!-- Debug-seksjon: viser raa JSON fra /arduino.json -->
+  <div class="dev-section" style="margin-top:24px">
+    <div class="dev-hdr">
+      <span class="dev-name" data-i18n="raw_title">Debug — rå JSON</span>
+      <span class="dev-port" id="raw-meta">—</span>
+      <button id="raw-toggle" data-i18n="raw_hide" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:2px 10px;font-size:0.72rem;cursor:pointer">Skjul</button>
+    </div>
+    <pre id="raw-json" style="margin:0;padding:12px 16px;font-family:'Cascadia Mono','Consolas',monospace;font-size:0.74rem;color:var(--text);background:#0a0d12;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.4" data-i18n="raw_wait">venter på data&hellip;</pre>
+  </div>
+</main>
+
+<footer id="footer" data-i18n="foot_initial">Sist oppdatert: —</footer>
+
+<script>
+'use strict';
+
+// ── i18n ─────────────────────────────────────────────────────────────────────
+const T = {
+  no: {
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering', nav_set:'Innstillinger',
+    nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi',
+    nav_kurs:'Kursliste', nav_ard:'Arduino',
+    coffee:'Kjøp meg en kaffe',
+    no_data:'Ingen data fra Arduino — venter på serial-reader.lua…',
+    raw_title:'Debug — rå JSON', raw_show:'Vis', raw_hide:'Skjul', raw_wait:'venter på data…',
+    foot_updated:'Sist oppdatert:', foot_wait:'Venter på data…', foot_initial:'Sist oppdatert: —',
+    dot_live:'Live', dot_ago:'s siden', dot_err:'Feil',
+    krets:'Krets', total_a:'A total', temp_default:'sensor',
+    delta_label:'topp/bunn', err_fetch:'FETCH-FEIL:', err_resp:'Respons:',
+    locale:'no-NO',
+    panel_top:'Sikringsskap topp', panel_bottom:'Sikringsskap bunn',
+  },
+  en: {
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration', nav_set:'Settings',
+    nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi',
+    nav_kurs:'Circuits', nav_ard:'Arduino',
+    coffee:'Buy me a coffee',
+    no_data:'No data from Arduino — waiting for serial-reader.lua…',
+    raw_title:'Debug — raw JSON', raw_show:'Show', raw_hide:'Hide', raw_wait:'waiting for data…',
+    foot_updated:'Last update:', foot_wait:'Waiting for data…', foot_initial:'Last update: —',
+    dot_live:'Live', dot_ago:'s ago', dot_err:'Error',
+    krets:'Circuit', total_a:'A total', temp_default:'sensor',
+    delta_label:'top/bottom', err_fetch:'FETCH ERROR:', err_resp:'Response:',
+    locale:'en-GB',
+    panel_top:'Distribution panel top', panel_bottom:'Distribution panel bottom',
+  },
+};
+let lang = localStorage.getItem('curb_lang') || 'no';
+
+// Reverse-lookup: hvis temp_labels fra config matcher en kjent norsk frase,
+// oversett til aktuelt språk. Ellers vis label som-er.
+const LABEL_KEYS = {
+  'Sikringsskap topp': 'panel_top',
+  'Sikringsskap bunn': 'panel_bottom',
+};
+function translateLabel(label) {
+  if (!label) return label;
+  const tr = T[lang] || T.no;
+  const key = LABEL_KEYS[label];
+  return (key && tr[key]) || label;
+}
+
+function applyLang(l) {
+  lang = l; localStorage.setItem('curb_lang', l);
+  const tr = T[l] || T.no;
+  document.documentElement.lang = (l === 'no') ? 'no' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n; if (tr[k] != null) el.textContent = tr[k];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+  // Oppdater raw-toggle-knappen riktig basert på pre-element synlighet
+  const pre = document.getElementById('raw-json');
+  const btn = document.getElementById('raw-toggle');
+  if (pre && btn) {
+    btn.textContent = (pre.style.display === 'none') ? tr.raw_show : tr.raw_hide;
+  }
+  // Re-render slik at dynamiske strenger faar nytt sprak ved neste tick
+  fetchAndRender();
+}
+
+// Maks ampere for stolpediagram (Shelly 50A CT, visuell skala)
+const BAR_MAX_A = 25;
+
+// Terskler for temperaturfarger
+const T_WARM = 30;  // °C — over: gul
+const T_HOT  = 45;  // °C — over: rød
+
+function tempClass(v) {
+  if (v === null) return 'null';
+  if (v >= T_HOT)  return 'hot';
+  if (v >= T_WARM) return 'warm';
+  return 'ok';
+}
+
+function fmt(v, dec) {
+  return (v === null || v === undefined) ? '—' : v.toFixed(dec);
+}
+
+function renderTemps(devices) {
+  const grid = document.getElementById('temp-grid');
+  grid.innerHTML = '';
+
+  let allTemps = [];
+  for (const dev of devices) {
+    const labels = dev.temp_labels || [];
+    const tr = T[lang] || T.no;
+    (dev.temps || []).forEach((v, i) => {
+      const rawLabel = labels[i] || (dev.label + ' ' + tr.temp_default + ' ' + i);
+      allTemps.push({
+        label: translateLabel(rawLabel),
+        val: (v === null || v === undefined) ? null : +v,
+        dev: dev.label,
+      });
+    });
+  }
+
+  if (allTemps.length === 0) return;
+
+  // Delta mellom første og andre sensor (topp/bunn)
+  let delta = null;
+  if (allTemps.length >= 2 && allTemps[0].val !== null && allTemps[1].val !== null) {
+    delta = Math.abs(allTemps[0].val - allTemps[1].val);
+  }
+
+  allTemps.forEach((t, idx) => {
+    const cls  = tempClass(t.val);
+    const card = document.createElement('div');
+    card.className = 'temp-card' + (t.val !== null ? ' ' + cls : '');
+    const valHtml = t.val !== null
+      ? `<span class="temp-val ${cls}">${t.val.toFixed(1)}<span class="temp-unit">°C</span></span>`
+      : `<span class="temp-val null">—</span>`;
+    const tr = T[lang] || T.no;
+    const deltaHtml = (idx === 0 && delta !== null)
+      ? `<div class="temp-delta">Δ ${delta.toFixed(1)} °C ${tr.delta_label}</div>`
+      : '';
+    card.innerHTML = `
+      <div class="temp-label">${t.label}</div>
+      ${valHtml}
+      ${deltaHtml}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function renderDevices(devices) {
+  const container = document.getElementById('devices');
+  container.innerHTML = '';
+
+  for (const dev of devices) {
+    const amps = dev.amps || [];
+    if (amps.length === 0) continue;
+
+    const totalA   = amps.reduce((s, a) => s + (a || 0), 0);
+    const ctOffset = dev.ct_offset != null ? dev.ct_offset : 18;
+    const names    = dev.circuit_names || {};
+
+    const section = document.createElement('div');
+    section.className = 'dev-section';
+
+    const tr = T[lang] || T.no;
+    section.innerHTML = `
+      <div class="dev-hdr">
+        <span class="dev-name">${dev.label}</span>
+        <span class="dev-port">${dev.port}</span>
+        <span class="dev-total">${totalA.toFixed(2)} ${tr.total_a}</span>
+      </div>
+      <div class="ct-list" id="ct-${dev.port.replace(/\//g,'_')}"></div>
+    `;
+    container.appendChild(section);
+
+    const list = section.querySelector('.ct-list');
+    amps.forEach((a, i) => {
+      const circuitIdx = ctOffset + i + 1;
+      const name = names[circuitIdx] || (tr.krets + ' ' + circuitIdx);
+      const pct  = Math.min(100, ((a || 0) / BAR_MAX_A) * 100);
+      const off  = !a || a < 0.05;
+      const row  = document.createElement('div');
+      row.className = 'ct-row' + (off ? ' off' : '');
+      row.innerHTML = `
+        <span class="ct-num">${circuitIdx}</span>
+        <span class="ct-name${off ? ' off' : ''}">${name}</span>
+        <div class="cbar"><div class="cbar-fill" style="width:${pct.toFixed(1)}%"></div></div>
+        <span class="ct-a">${off ? '—' : (a).toFixed(2) + ' A'}</span>
+      `;
+      list.appendChild(row);
+    });
+  }
+}
+
+function updateDot(ts) {
+  const dot  = document.getElementById('dot');
+  const txt  = document.getElementById('dot-text');
+  const tr   = T[lang] || T.no;
+  const age  = Math.round((Date.now() / 1000) - ts);
+  if (age < 10) {
+    dot.className = 'live';
+    txt.textContent = tr.dot_live;
+  } else if (age < 30) {
+    dot.className = 'stale';
+    txt.textContent = age + tr.dot_ago;
+  } else {
+    dot.className = 'err';
+    txt.textContent = age + tr.dot_ago;
+  }
+}
+
+// Lua's empty-table-blir-{} i JSON: normaliser objekter til tomme arrays
+function arr(v) { return Array.isArray(v) ? v : []; }
+
+// Debug-toggle for rå JSON
+document.getElementById('raw-toggle').addEventListener('click', (e) => {
+  const pre = document.getElementById('raw-json');
+  const vis = pre.style.display !== 'none';
+  const tr  = T[lang] || T.no;
+  pre.style.display = vis ? 'none' : '';
+  e.target.textContent = vis ? tr.raw_show : tr.raw_hide;
+});
+
+async function fetchAndRender() {
+  let rawText = '';
+  try {
+    const res  = await fetch('/arduino.json?_=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    rawText = await res.text();
+
+    // Vis rå JSON med tidsstempel
+    document.getElementById('raw-json').textContent = rawText;
+    const trMeta = T[lang] || T.no;
+    document.getElementById('raw-meta').textContent =
+      rawText.length + ' bytes · ' + new Date().toLocaleTimeString(trMeta.locale);
+
+    const data = JSON.parse(rawText);
+    const devices = (data.devices || []).map(d => ({
+      ...d, temps: arr(d.temps), amps: arr(d.amps),
+    }));
+    const noData  = document.getElementById('no-data');
+    const hasData = devices.some(d => d.amps.length > 0 || d.temps.length > 0);
+
+    noData.style.display = hasData ? 'none' : '';
+
+    if (hasData) {
+      renderTemps(devices);
+      renderDevices(devices);
+    }
+    updateDot(data.ts || 0);
+
+    const tr = T[lang] || T.no;
+    const d = new Date((data.ts || 0) * 1000);
+    document.getElementById('footer').textContent =
+      tr.foot_updated + ' ' + d.toLocaleTimeString(tr.locale);
+
+  } catch (e) {
+    const tr = T[lang] || T.no;
+    const dot = document.getElementById('dot');
+    dot.className = 'err';
+    document.getElementById('dot-text').textContent = tr.dot_err;
+    document.getElementById('no-data').style.display = '';
+    document.getElementById('raw-json').textContent =
+      tr.err_fetch + ' ' + e.message + (rawText ? '\n\n' + tr.err_resp + '\n' + rawText : '');
+  }
+}
+
+// Bruk lagret sprak ved oppstart
+applyLang(lang);
+
+fetchAndRender();
+setInterval(fetchAndRender, 2000);
+</script>
+</body>
+</html>

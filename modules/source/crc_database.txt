@@ -1,0 +1,180 @@
+# Curb-kjernens __kcrctab — verifiserte CRC-er for modul-bygging
+# Kilde: /proc/kallsyms (Curb, 10.0.0.107) + /dev/mem
+# Kjerneversjon: 3.16.0-karo (vermagic: "3.16.0-karo preempt mod_unload modversions ARMv5 p2v8")
+#
+# Format: CRC  symbolnavn
+# Bruk: For å bygge ny modul, slå opp CRC for hvert undefined symbol her.
+#       Hvis symbolet mangler, kjør lookup_crc.sh på Curb med oppdatert symbol-liste.
+
+# --- Helt grunnleggende (alle moduler trenger disse) ---
+0x68ee78b9  module_layout
+0x27e1a049  printk
+0xefd6cf06  __aeabi_unwind_cpp_pr0
+
+# --- Generelle helpers ---
+0x9d669763  memcpy
+0x71c90087  memcmp
+0x0fa2a45e  __memzero
+0x91715312  sprintf
+0xb81960ca  snprintf
+0xfbc74f64  __copy_from_user
+0x67c2fa54  __copy_to_user
+0xe707d823  __aeabi_uidiv
+
+# --- Minne (slab/kmalloc) ---
+0x12da5bb2  __kmalloc
+0x9ac1ca58  kmem_cache_alloc
+0x5aef5059  kmalloc_caches
+0x037a0cba  kfree
+
+# --- Bit-operasjoner ---
+0x676bbc0f  _set_bit
+0x49ebacbd  _clear_bit
+0x2a3aa678  _test_and_clear_bit
+0x6d662533  _find_first_bit_le
+
+# --- Synkronisering ---
+0xdc798d37  __mutex_init
+0xe16b893b  mutex_lock
+0x62b72b0d  mutex_unlock
+0x63b87fc5  __init_waitqueue_head
+0xa8cde9a7  remove_wait_queue
+0xfe634f58  add_wait_queue
+0xb9e52429  __wake_up
+0xffd5a395  default_wake_function
+0x158f2f00  prepare_to_wait_event
+0x8893fa5d  finish_wait
+
+# --- Scheduling / workqueue ---
+0x01000e51  schedule
+0x43b0c9c3  preempt_schedule
+0x2d3385d3  system_wq
+0xb2d48a2e  queue_work_on
+0x4205ad24  cancel_work_sync
+0x09c55cec  schedule_timeout_interruptible
+0x7d11c268  jiffies
+
+# --- Logging ---
+0x1a2bfe0c  dev_err
+0x0116bd00  dev_warn
+0x7b11913f  _dev_info
+0x16305289  warn_slowpath_null
+0x1e047854  warn_slowpath_fmt
+
+# --- Capability ---
+0xc6cbbc89  capable
+
+# --- TTY-subsystem ---
+0x67b27ec1  tty_std_termios
+0x9835c30c  put_tty_driver
+0xf0848af2  __tty_alloc_driver
+0x3f809ff5  tty_register_driver
+0x3fd36581  tty_unregister_driver
+0xc2ac74e5  tty_set_operations
+0xf770d77f  tty_register_device
+0xba1a35f9  tty_unregister_device
+0xe08bfab6  tty_port_register_device
+0x2bc7cd30  tty_port_init
+0x834b4407  tty_port_destroy
+0xf186dc72  tty_port_open
+0x8380de78  tty_port_close
+0x45c812cd  tty_port_hangup
+0x49932811  tty_port_tty_hangup
+0xe1c2e7ab  tty_hangup
+0xcd899963  tty_port_tty_get
+0x198bbe57  tty_port_tty_wakeup
+0x3a3106fc  tty_port_put
+0x0354d1c0  tty_port_install
+0x2e62c319  tty_kref_put
+0x906608c7  tty_vhangup
+0xa073575c  tty_standard_install
+0x1fd62d6d  tty_flip_buffer_push
+0xb3221eaa  tty_insert_flip_string_fixed_flag
+0x450c254a  tty_insert_flip_string_flags
+0x409873e3  tty_termios_baud_rate
+0x30e74134  tty_termios_copy_hw
+0x468ee2a8  tty_encode_baud_rate
+0x6481759e  tty_ldisc_deref
+0x63d62a4a  tty_ldisc_ref
+
+# --- USB-core ---
+0x63094aea  usb_deregister
+0xb1a488f6  usb_register_driver
+0xac64efcc  usb_driver_release_interface
+0xf2ff1394  usb_driver_claim_interface
+0xfa1ddfa8  usb_put_intf
+0x1d6016da  usb_get_intf
+0xe9b2ff98  usb_ifnum_to_if
+0xe36d8f83  usb_control_msg
+0xbb551af0  usb_submit_urb
+0xb35eeab3  usb_kill_urb
+0xe1e12831  usb_poison_urb
+0x2889a336  usb_unpoison_urb
+0x867c94da  usb_free_urb
+0xd49c06ce  usb_alloc_urb
+0x9954aa80  usb_anchor_urb
+0x8ee78940  usb_get_from_anchor
+0xb04354bb  usb_alloc_coherent
+0xf720aa14  usb_free_coherent
+0xd517640f  usb_get_dev
+0x413fd915  usb_put_dev
+0x1c89523a  usb_reset_device
+0x19a304ba  usb_disabled
+0x37fe3ca3  usb_match_one_id
+0xffbc3549  usb_match_id
+0x865a8b4b  usb_store_new_id
+0x51e8a5e9  usb_show_dynids
+
+# --- USB-serial (kun de som er eksportert fra builtin usbserial) ---
+0x8e0ae475  usb_serial_register_drivers
+0xb8dd67c5  usb_serial_deregister_drivers
+0x460e606f  usb_serial_generic_open
+0x751bb41f  usb_serial_generic_close
+0xdb070889  usb_serial_generic_tiocmiwait
+0x38fa238d  usb_serial_handle_dcd_change
+
+# --- Device-model ---
+0x395bbdb9  device_create_file
+0x97607194  device_remove_file
+0x425e0d7e  dev_set_name
+0xa7b6de10  device_initialize
+0x1c37488b  device_add
+0x67e8055f  device_del
+0x551cd9f6  put_device
+
+# --- Bus/driver ---
+0x3b40097c  bus_register
+0xa3bd6388  bus_unregister
+0x04d5df83  driver_register
+0xdf0866d9  driver_unregister
+0x3736fc6d  driver_attach
+
+# --- Module-related ---
+0xf20efc3b  module_put
+0xc90d7cf0  try_module_get
+
+# --- Param ---
+0xafad493b  param_ops_ushort
+
+# --- kfifo ---
+0x13d0adf7  __kfifo_out
+0xc068440e  __kfifo_alloc
+0xf23fcb99  __kfifo_in
+0xdb760f52  __kfifo_free
+
+# --- IDR (ID-allocator) ---
+0x8bfd8946  idr_alloc
+0x4c0745bf  idr_remove
+0x8fc796ea  idr_find_slowpath
+
+# --- Seq-fil / procfs ---
+0xe2393816  single_open
+0xc41c7c4d  single_release
+0x22a3efbe  seq_puts
+0xc16dfc8d  seq_putc
+0xce8b3243  seq_printf
+0x18769e2e  seq_lseek
+0x879fc76d  seq_read
+
+# --- Sysrq ---
+0x7647726c  handle_sysrq

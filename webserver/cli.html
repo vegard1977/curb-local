@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Terminal — Curb Energy</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: var(--bg); color: var(--text);
+           display: flex; flex-direction: column; }
+
+    /* ── Nav ───────────────────────────────────────────────────────────────── */
+    nav { background: var(--surface); border-bottom: 1px solid var(--border);
+          padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0;
+          overflow-x: auto; }
+    .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
+    .nav-brand span { color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px;
+              height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent;
+              transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-left: 10px; }
+    .lang-toggle { display: flex; gap: 3px; }
+    .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted);
+                border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
+    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; margin-right: 5px; }
+    .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a;
+                  padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem;
+                  text-decoration: none; transition: opacity .15s; }
+    .coffee-btn:hover { opacity: 0.85; }
+    .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
+    .kofi-btn:hover { opacity: 0.85; }
+
+    /* ── Update banner ─────────────────────────────────────────────────────── */
+    #update-banner { display:none; background:rgba(56,139,253,.10); border-bottom:1px solid rgba(56,139,253,.25);
+                     padding:7px 20px; font-size:0.80rem; color:#e6edf3; text-align:center;
+                     position:relative; flex-shrink:0; }
+
+    /* ── Toolbar ───────────────────────────────────────────────────────────── */
+    .cli-toolbar { background: var(--surface); border-bottom: 1px solid var(--border);
+                   padding: 0 16px; height: 40px; display: flex; align-items: center;
+                   gap: 10px; flex-shrink: 0; }
+    .cli-title { font-size: 0.80rem; font-weight: 600; color: #e6edf3; margin-right: 6px; }
+    .cli-hint { font-size: 0.70rem; color: var(--muted); flex: 1; overflow: hidden;
+                text-overflow: ellipsis; white-space: nowrap; }
+    .tb-btn { background: #21262d; border: 1px solid var(--border); color: var(--text);
+              border-radius: 5px; padding: 4px 12px; font-size: 0.76rem; cursor: pointer;
+              transition: border-color .15s; white-space: nowrap; }
+    .tb-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Terminal container ────────────────────────────────────────────────── */
+    #cli-wrap { flex: 1; min-height: 0; overflow: hidden; padding: 4px; background: #0d1117; }
+    #terminal { height: 100%; width: 100%; }
+    .xterm { height: 100%; }
+    .xterm-viewport { overflow-y: auto !important; }
+
+    /* ── Footer ────────────────────────────────────────────────────────────── */
+    footer { border-top: 1px solid var(--border); padding: 8px 20px; font-size: 0.70rem;
+             color: var(--muted); flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
+  <a href="energy.html"      data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html"       data-i18n="nav_stat">Statistikk</a>
+  <a href="calibration.html" data-i18n="nav_cal">Kalibrering</a>
+  <a href="settings.html"    data-i18n="nav_set">Innstillinger</a>
+  <a href="sysinfo.html"     data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" data-i18n="nav_ser">Serial / Powerline</a>
+  <a href="usb.html"         data-i18n="nav_usb">USB</a>
+  <a href="wifi.html"        data-i18n="nav_wifi">WiFi</a>
+  <a href="kursliste.html"   data-i18n="nav_kurs">Kursliste</a>
+  <a href="arduino.html"     data-i18n="nav_ard">Arduino</a>
+  <a href="modules.html"     data-i18n="nav_mod">Moduler</a>
+  <a href="cli.html"         data-i18n="nav_cli" class="active">Terminal</a>
+  <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<div id="update-banner">
+  ⬆ <span data-i18n="update_avail">Ny versjon tilgjengelig:</span>
+  <strong><a id="update-ver" href="https://github.com/vegard1977/curb-local/releases/latest"
+    target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none"></a></strong>
+  <button onclick="document.getElementById('update-banner').style.display='none'"
+    style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1">×</button>
+</div>
+
+<div class="cli-toolbar">
+  <span class="cli-title" data-i18n="cli_title">Terminal</span>
+  <span class="cli-hint" id="cli-hint"></span>
+  <button class="tb-btn" onclick="termClear()" data-i18n="cli_btn_clear">Tøm</button>
+  <button class="tb-btn" onclick="termHelp()" data-i18n="cli_btn_help">Hjelp</button>
+</div>
+
+<div id="cli-wrap">
+  <div id="terminal"></div>
+</div>
+
+<footer>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v1.3</span></span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script>
+const APP_VERSION = 'v1.3';
+const API = 'http://' + location.hostname + ':8080';
+
+// ── i18n ────────────────────────────────────────────────────────────────────
+const T = {
+  no: {
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering',
+    nav_set:'Innstillinger', nav_sys:'System', nav_ser:'Serial / Powerline',
+    nav_usb:'USB', nav_wifi:'WiFi', nav_kurs:'Kursliste', nav_ard:'Arduino',
+    nav_mod:'Moduler', nav_cli:'Terminal',
+    coffee:'Kjøp meg en kaffe',
+    credit:'Utviklet av Vegard Myrvang',
+    update_avail:'Ny versjon tilgjengelig:',
+    cli_title:'Terminal',
+    cli_btn_clear:'Tøm', cli_btn_help:'Hjelp',
+    cli_hint:'Trygge kommandoer kjøres direkte · Farlige/ukjente krever bekreftelse · Ctrl+C avbryt · Ctrl+L tøm',
+    cli_cancelled:'Avbrutt.',
+    confirm_prompt:'Trykk Enter for å bekrefte, Esc for å avbryte',
+  },
+  en: {
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration',
+    nav_set:'Settings', nav_sys:'System', nav_ser:'Serial / Powerline',
+    nav_usb:'USB', nav_wifi:'WiFi', nav_kurs:'Course list', nav_ard:'Arduino',
+    nav_mod:'Modules', nav_cli:'Terminal',
+    coffee:'Buy me a coffee',
+    credit:'Developed by Vegard Myrvang',
+    update_avail:'New version available:',
+    cli_title:'Terminal',
+    cli_btn_clear:'Clear', cli_btn_help:'Help',
+    cli_hint:'Safe commands run directly · Dangerous/unknown require confirmation · Ctrl+C cancel · Ctrl+L clear',
+    cli_cancelled:'Cancelled.',
+    confirm_prompt:'Press Enter to confirm, Esc to cancel',
+  },
+};
+
+let lang = localStorage.getItem('curb_lang') || 'no';
+
+function applyLang(l) {
+  lang = l;
+  localStorage.setItem('curb_lang', l);
+  const tr = T[l] || T.no;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (tr[k] != null) el.textContent = tr[k];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.lang === l));
+  document.getElementById('cli-hint').textContent = tr.cli_hint;
+}
+
+// ── xterm.js setup ──────────────────────────────────────────────────────────
+const term = new Terminal({
+  cursorBlink: true,
+  fontSize: 13,
+  fontFamily: "'Cascadia Code', 'Fira Code', Consolas, 'Courier New', monospace",
+  scrollback: 2000,
+  convertEol: false,
+  theme: {
+    background:    '#0d1117',
+    foreground:    '#c9d1d9',
+    cursor:        '#c9d1d9',
+    cursorAccent:  '#0d1117',
+    selectionBackground: 'rgba(56,139,253,0.3)',
+    black:         '#484f58', brightBlack:   '#6e7681',
+    red:           '#f85149', brightRed:     '#ff7b72',
+    green:         '#3fb950', brightGreen:   '#56d364',
+    yellow:        '#d29922', brightYellow:  '#e3b341',
+    blue:          '#388bfd', brightBlue:    '#79c0ff',
+    magenta:       '#bc8cff', brightMagenta: '#d2a8ff',
+    cyan:          '#39c5cf', brightCyan:    '#56d4dd',
+    white:         '#b1bac4', brightWhite:   '#f0f6fc',
+  },
+});
+
+const fitAddon = new FitAddon.FitAddon();
+term.loadAddon(fitAddon);
+term.open(document.getElementById('terminal'));
+fitAddon.fit();
+
+window.addEventListener('resize', () => fitAddon.fit());
+
+// ── Terminal state ──────────────────────────────────────────────────────────
+const TIMEOUT = 12000;  // 12s fetch timeout (server-side cap er 10s)
+
+let inputBuf     = '';
+let cursorPos    = 0;
+let history      = [];
+let histIdx      = -1;
+let pendingCmd   = null;
+let isExecuting  = false;
+let cwd          = '/root';
+
+function makePrompt() {
+  let dir = cwd;
+  if (dir === '/root')           dir = '~';
+  else if (dir.startsWith('/root/')) dir = '~/' + dir.slice(7);
+  return '\x1b[1;32mroot@curb\x1b[0m:\x1b[1;34m' + dir + '\x1b[0m\x1b[1m#\x1b[0m ';
+}
+
+// ── Line editing helpers ────────────────────────────────────────────────────
+function refreshLine() {
+  term.write('\r\x1b[K' + makePrompt() + inputBuf);
+  const back = inputBuf.length - cursorPos;
+  if (back > 0) term.write('\x1b[' + back + 'D');
+}
+
+function replaceInput(s) {
+  inputBuf = s;
+  cursorPos = s.length;
+  refreshLine();
+}
+
+function showPrompt() {
+  term.write('\r\n' + makePrompt());
+  inputBuf = '';
+  cursorPos = 0;
+  histIdx = -1;
+}
+
+// ── Help text ───────────────────────────────────────────────────────────────
+function termHelp() {
+  const isNo = lang === 'no';
+  const lines = isNo ? [
+    '',
+    '\x1b[1;36mCurb Terminal ' + APP_VERSION + '\x1b[0m',
+    '\x1b[2m────────────────────────────────────────────\x1b[0m',
+    '\x1b[1mTrygge kommandoer\x1b[0m \x1b[2m(kjøres direkte):\x1b[0m',
+    '  ls, cat, head, tail, grep, find, du, df, stat',
+    '  ps, uptime, free, lsmod, dmesg, logread',
+    '  ifconfig, ip, netstat, route, arp, ping',
+    '  awk, sed, sort, cut, od, hexdump, md5sum',
+    '  echo, date, uname, hostname, id, env, lua',
+    '',
+    '\x1b[1mFarlige kommandoer\x1b[0m \x1b[2m(krever bekreftelse):\x1b[0m',
+    '  rm, kill, reboot, chmod, chown, dd, mkfs',
+    '  insmod, rmmod, cp, mv, passwd, iptables',
+    '',
+    '\x1b[2mUkjente kommandoer krever alltid bekreftelse.\x1b[0m',
+    '\x1b[2mShell-tegn (;|&`$><) krever bekreftelse.\x1b[0m',
+    '',
+    '\x1b[1mSnarveier:\x1b[0m',
+    '  \x1b[1mCtrl+C\x1b[0m   Avbryt innskriving',
+    '  \x1b[1mCtrl+L\x1b[0m   Tøm skjerm',
+    '  \x1b[1m↑ / ↓\x1b[0m   Kommandohistorikk',
+    '  \x1b[1m← / →\x1b[0m   Flytt markør',
+    '',
+  ] : [
+    '',
+    '\x1b[1;36mCurb Terminal ' + APP_VERSION + '\x1b[0m',
+    '\x1b[2m────────────────────────────────────────────\x1b[0m',
+    '\x1b[1mSafe commands\x1b[0m \x1b[2m(run directly):\x1b[0m',
+    '  ls, cat, head, tail, grep, find, du, df, stat',
+    '  ps, uptime, free, lsmod, dmesg, logread',
+    '  ifconfig, ip, netstat, route, arp, ping',
+    '  awk, sed, sort, cut, od, hexdump, md5sum',
+    '  echo, date, uname, hostname, id, env, lua',
+    '',
+    '\x1b[1mDangerous commands\x1b[0m \x1b[2m(require confirmation):\x1b[0m',
+    '  rm, kill, reboot, chmod, chown, dd, mkfs',
+    '  insmod, rmmod, cp, mv, passwd, iptables',
+    '',
+    '\x1b[2mUnknown commands always require confirmation.\x1b[0m',
+    '\x1b[2mShell chars (;|&`$><) require confirmation.\x1b[0m',
+    '',
+    '\x1b[1mShortcuts:\x1b[0m',
+    '  \x1b[1mCtrl+C\x1b[0m   Cancel input',
+    '  \x1b[1mCtrl+L\x1b[0m   Clear screen',
+    '  \x1b[1m↑ / ↓\x1b[0m   Command history',
+    '  \x1b[1m← / →\x1b[0m   Move cursor',
+    '',
+  ];
+  if (!isExecuting) {
+    term.write('\r\n');
+    lines.forEach(l => term.write(l + '\r\n'));
+    term.write(PROMPT + inputBuf);
+    if (cursorPos < inputBuf.length)
+      term.write('\x1b[' + (inputBuf.length - cursorPos) + 'D');
+  }
+}
+
+function termClear() {
+  term.clear();
+  term.write(PROMPT + inputBuf);
+  const back = inputBuf.length - cursorPos;
+  if (back > 0) term.write('\x1b[' + back + 'D');
+}
+
+// ── Tab completion ───────────────────────────────────────────────────────────
+async function doComplete() {
+  if (isExecuting) return;
+
+  // Hent ordet som skal kompletteres (siste token før markøren)
+  const before  = inputBuf.slice(0, cursorPos);
+  const partial = (before.match(/(\S*)$/) || ['',''])[1];
+
+  let data;
+  try {
+    const res = await fetch(API + '/api/cli/complete', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ partial }),
+    });
+    data = await res.json();
+  } catch(e) { return; }
+
+  const completions = data.completions || [];
+  if (completions.length === 0) { term.write('\x07'); return; }
+
+  // Finn lengste felles prefiks blant alle kompletteringar
+  let common = completions[0];
+  for (let i = 1; i < completions.length; i++) {
+    let j = 0;
+    while (j < common.length && j < completions[i].length && common[j] === completions[i][j]) j++;
+    common = common.slice(0, j);
+  }
+
+  const wordStart = cursorPos - partial.length;
+
+  if (completions.length === 1 || common.length > partial.length) {
+    // Eitt treff, eller felles prefiks er lengre enn det skrive — fyll ut
+    const after  = inputBuf.slice(cursorPos);
+    inputBuf  = inputBuf.slice(0, wordStart) + common + after;
+    cursorPos = wordStart + common.length;
+    refreshLine();
+    if (completions.length > 1) term.write('\x07'); // fleire val igjen — bjøll
+    return;
+  }
+
+  // Fleire treff, ingen vidare felles prefiks — vis liste
+  term.write('\r\n');
+  const cols    = Math.max(1, Math.floor(term.cols / 22));
+  completions.forEach((c, i) => {
+    const name    = (c.replace(/\/$/, '').split('/').pop() || c) + (c.endsWith('/') ? '/' : '');
+    const isDir   = c.endsWith('/');
+    const padded  = name.slice(0, 20).padEnd(21);
+    term.write(isDir ? '\x1b[1;34m' + padded + '\x1b[0m' : padded);
+    if ((i + 1) % cols === 0) term.write('\r\n');
+  });
+  if (completions.length % cols !== 0) term.write('\r\n');
+  // Gjenopprett promptlinja
+  term.write(makePrompt() + inputBuf);
+  if (cursorPos < inputBuf.length) term.write('\x1b[' + (inputBuf.length - cursorPos) + 'D');
+}
+
+// ── Command execution ───────────────────────────────────────────────────────
+async function execCmd(cmd, confirmed) {
+  isExecuting = true;
+  try {
+    const body = { cmd };
+    if (confirmed) body.confirmed = true;
+
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), TIMEOUT);
+
+    let res;
+    try {
+      res = await fetch(API + '/api/cli/exec', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+        signal:  ctrl.signal,
+      });
+    } finally {
+      clearTimeout(tid);
+    }
+
+    const data = await res.json();
+
+    if (data.cwd) cwd = data.cwd;
+
+    if (data.requires_confirm) {
+      pendingCmd = cmd;
+      term.write('\r\n\x1b[33m⚠  ' + data.message + '\x1b[0m');
+      term.write('\r\n\x1b[33m   ' + (T[lang] || T.no).confirm_prompt + '\x1b[0m');
+      isExecuting = false;
+      return;
+    }
+
+    if (data.stdout && data.stdout.length > 0) {
+      term.write('\r\n' + data.stdout.replace(/\r?\n/g, '\r\n'));
+      if (!data.stdout.endsWith('\n')) term.write('\r\n');
+    }
+
+    if (data.stderr && data.stderr.length > 0) {
+      term.write('\x1b[31m' + data.stderr.replace(/\r?\n/g, '\r\n') + '\x1b[0m');
+      if (!data.stderr.endsWith('\n')) term.write('\r\n');
+    }
+
+    if (data.exit_code !== 0) {
+      term.write('\x1b[31m[exit ' + data.exit_code + ']\x1b[0m'
+        + '\x1b[2m  ' + data.duration_ms + 'ms\x1b[0m\r\n');
+    } else if (data.duration_ms > 2000) {
+      term.write('\x1b[2m[' + data.duration_ms + 'ms]\x1b[0m\r\n');
+    }
+
+    showPrompt();
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? (lang === 'no' ? 'Forespørsel timet ut (>12s)' : 'Request timed out (>12s)')
+      : e.message;
+    term.write('\r\n\x1b[31m[' + msg + ']\x1b[0m\r\n');
+    showPrompt();
+  } finally {
+    isExecuting = false;
+  }
+}
+
+// ── Key handler ─────────────────────────────────────────────────────────────
+term.onData(data => {
+  // Ignore input while executing (except confirmation state handled below)
+  if (isExecuting && !pendingCmd) return;
+
+  // ── Confirmation mode ──────────────────────────────────────────────────
+  if (pendingCmd !== null) {
+    if (data === '\r') {
+      const cmd = pendingCmd;
+      pendingCmd = null;
+      term.write('\r\n');
+      execCmd(cmd, true);
+    } else if (data === '\x1b') {
+      pendingCmd = null;
+      term.write('\r\n\x1b[33m' + (T[lang] || T.no).cli_cancelled + '\x1b[0m');
+      showPrompt();
+    }
+    return;
+  }
+
+  // ── Normal input ────────────────────────────────────────────────────────
+  if (data === '\r') {
+    // Enter
+    const cmd = inputBuf.trim();
+    term.write('\r\n');
+    if (cmd) {
+      if (history[0] !== cmd) history.unshift(cmd);
+      if (history.length > 200) history.pop();
+      histIdx = -1;
+      execCmd(cmd, false);
+    } else {
+      showPrompt();
+    }
+    inputBuf  = '';
+    cursorPos = 0;
+
+  } else if (data === '\x7f' || data === '\b') {
+    // Backspace
+    if (cursorPos > 0) {
+      inputBuf  = inputBuf.slice(0, cursorPos - 1) + inputBuf.slice(cursorPos);
+      cursorPos -= 1;
+      refreshLine();
+    }
+
+  } else if (data === '\x1b[A') {
+    // Up — history
+    if (histIdx < history.length - 1) {
+      histIdx++;
+      replaceInput(history[histIdx]);
+    }
+
+  } else if (data === '\x1b[B') {
+    // Down — history
+    if (histIdx > 0) {
+      histIdx--;
+      replaceInput(history[histIdx]);
+    } else if (histIdx === 0) {
+      histIdx = -1;
+      replaceInput('');
+    }
+
+  } else if (data === '\x1b[C') {
+    // Right arrow
+    if (cursorPos < inputBuf.length) {
+      cursorPos++;
+      term.write('\x1b[C');
+    }
+
+  } else if (data === '\x1b[D') {
+    // Left arrow
+    if (cursorPos > 0) {
+      cursorPos--;
+      term.write('\x1b[D');
+    }
+
+  } else if (data === '\x1b[H' || data === '\x1b[1~') {
+    // Home
+    cursorPos = 0;
+    refreshLine();
+
+  } else if (data === '\x1b[F' || data === '\x1b[4~') {
+    // End
+    cursorPos = inputBuf.length;
+    refreshLine();
+
+  } else if (data === '\x03') {
+    // Ctrl+C
+    term.write('^C\r\n' + PROMPT);
+    inputBuf  = '';
+    cursorPos = 0;
+    histIdx   = -1;
+
+  } else if (data === '\x0c') {
+    // Ctrl+L
+    termClear();
+
+  } else if (data === '\t') {
+    // Tab — filkomplettering
+    doComplete();
+
+  } else if (data.length === 1 && data >= ' ') {
+    // Printable character
+    inputBuf  = inputBuf.slice(0, cursorPos) + data + inputBuf.slice(cursorPos);
+    cursorPos += 1;
+    refreshLine();
+  }
+});
+
+// ── Startup ─────────────────────────────────────────────────────────────────
+function writeWelcome() {
+  const isNo = lang === 'no';
+  term.write('\x1b[1;36mCurb Terminal\x1b[0m \x1b[2m' + APP_VERSION + '\x1b[0m\r\n');
+  term.write('\x1b[2m' + (isNo
+    ? 'Skriv "hjelp" for oversikt · timeout 10s · maks 64 KB output'
+    : 'Type "help" for overview · timeout 10s · max 64 KB output')
+    + '\x1b[0m\r\n');
+  term.write(PROMPT);
+}
+
+// Intercept "hjelp"/"help" locally
+const _execCmd = execCmd;
+window.execCmd = async function(cmd, confirmed) {
+  if (cmd === 'hjelp' || cmd === 'help') {
+    termHelp();
+    showPrompt();
+    return;
+  }
+  if (cmd === 'clear' || cmd === 'cls') {
+    termClear();
+    showPrompt();
+    return;
+  }
+  return _execCmd(cmd, confirmed);
+};
+
+async function checkForUpdate() {
+  try {
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 5000);
+    const res  = await fetch(
+      'https://api.github.com/repos/vegard1977/curb-local/releases/latest',
+      { signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!res.ok) return;
+    const { tag_name } = await res.json();
+    if (tag_name && tag_name !== APP_VERSION) {
+      document.getElementById('update-ver').textContent = tag_name;
+      document.getElementById('update-banner').style.display = '';
+    }
+  } catch (e) {}
+}
+
+applyLang(lang);
+checkForUpdate();
+writeWelcome();
+term.focus();
+</script>
+</body>
+</html>

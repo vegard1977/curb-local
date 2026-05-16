@@ -1,0 +1,585 @@
+﻿<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kursliste — Curb Energy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #c9d1d9; --muted: #8b949e; --accent: #388bfd;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; height: 48px; flex-shrink: 0; overflow-x: auto; }
+    .nav-brand { font-weight: 600; font-size: 0.95rem; color: #fff; margin-right: 20px; white-space: nowrap; }
+    .nav-brand span { color: var(--accent); }
+    nav > a { color: var(--muted); text-decoration: none; font-size: 0.82rem; padding: 0 10px; height: 48px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    nav > a:hover { color: var(--text); }
+    nav > a.active { color: #fff; border-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .lang-toggle { display: flex; gap: 3px; }
+    .lang-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 2px 7px; font-size: 0.70rem; cursor: pointer; transition: all 0.15s; }
+    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+    .support-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-right: 5px; }
+    .coffee-btn { display: inline-flex; align-items: center; gap: 5px; background: #FFDD00; color: #1a1a1a; padding: 5px 13px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: opacity .15s; }
+    .coffee-btn:hover { opacity: 0.85; }
+    .kofi-btn { display: inline-flex; align-items: center; text-decoration: none; transition: opacity .15s; }
+    .kofi-btn:hover { opacity: 0.85; }
+
+    main { max-width: 960px; margin: 0 auto; padding: 20px 16px; width: 100%; flex: 1; }
+    footer { border-top: 1px solid var(--border); padding: 12px 20px; font-size: 0.72rem; color: var(--muted); flex-shrink: 0; max-width: 960px; margin: 0 auto; width: 100%; }
+
+    /* ── Info panel ───────────────────────────────────────────────── */
+    .info-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    .info-row { display: flex; flex-direction: column; gap: 3px; }
+    .info-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+
+    /* ── Shared contenteditable ───────────────────────────────────── */
+    [contenteditable].ce {
+      display: block; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px;
+      outline: none; cursor: text; min-height: 24px; line-height: 1.35;
+      transition: border-color .12s, background .12s;
+    }
+    [contenteditable].ce:hover { border-color: var(--border); background: rgba(255,255,255,.03); }
+    [contenteditable].ce:focus { border-color: var(--accent); background: rgba(56,139,253,.06); }
+    [contenteditable].info-val { font-size: 0.90rem; font-weight: 600; color: #e6edf3; }
+    .ce-muted  { color: var(--muted); font-size: 0.80rem; }
+    .ce-center { text-align: center; }
+    .ce-foot   { font-weight: 600; color: #e6edf3; }
+
+    /* ── Toolbar ─────────────────────────────────────────────────── */
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .btn { border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; font-size: 0.80rem; cursor: pointer; transition: all .15s; }
+    .btn-print { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-print:hover { opacity: 0.85; }
+    .btn-reset { background: var(--surface); color: var(--muted); }
+    .btn-reset:hover { border-color: var(--red); color: var(--red); }
+    .save-status { font-size: 0.72rem; color: var(--muted); }
+
+    /* ── Table ───────────────────────────────────────────────────── */
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+
+    thead { background: rgba(255,255,255,.03); }
+    th {
+      padding: 7px 4px; font-size: 0.68rem; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--muted); font-weight: 600;
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    th[contenteditable] { cursor: text; outline: none; }
+    th[contenteditable]:hover { background: rgba(255,255,255,.03); }
+    th[contenteditable]:focus { background: rgba(56,139,253,.06); color: var(--text); }
+
+    td { padding: 3px 2px; border-bottom: 1px solid rgba(33,38,45,.7); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(255,255,255,.02); }
+    tfoot td { background: rgba(56,139,253,.07); border-top: 2px solid var(--accent); }
+
+    /* ── Column widths ───────────────────────────────────────────── */
+    .col-nr    { width: 34px; text-align: center; color: var(--muted); font-size: 0.74rem; padding: 0 4px; }
+    .col-malt  { width: 58px; text-align: center; }
+    .col-a     { width: 42px; text-align: center; }
+    .col-type  { width: 46px; text-align: center; }
+    .col-kabel { width: 72px; }
+    .col-curb  { width: 62px; text-align: center; }
+
+    /* ── Live current cell ───────────────────────────────────────── */
+    .live-cur {
+      display: block; width: 100%; text-align: center;
+      font-size: 0.75rem; font-variant-numeric: tabular-nums;
+      color: var(--green); line-height: 1;
+      white-space: nowrap; padding: 3px 0;
+    }
+    .live-cur:empty { padding: 0; }
+    .live-cur.stale { color: var(--yellow); }
+
+    /* ── Divider between Målt and A ──────────────────────────────── */
+    .col-malt { border-right: 1px solid var(--border); }
+
+    /* ── Print ───────────────────────────────────────────────────── */
+    @media print {
+      @page { size: A4 portrait; margin: 12mm 10mm; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      :root {
+        --bg:#fff; --surface:#fff; --border:#bbb;
+        --text:#111; --muted:#555; --accent:#1a56db; --green:#1a6b2a;
+      }
+      body { background:#fff; color:#111; font-size:10pt; }
+      nav, footer, .no-print { display:none !important; }
+      main { padding:0; max-width:100%; }
+
+      .info-panel {
+        background:#fff; border:1px solid #bbb; border-radius:0;
+        padding:7px 10px; margin-bottom:8px;
+        grid-template-columns:repeat(3,1fr); gap:6px;
+      }
+      .info-label { color:#555; font-size:7pt; }
+      [contenteditable].info-val { color:#111; border:none !important; background:none !important; font-size:9pt; padding:0; }
+
+      .table-wrap { border-radius:0; border:1px solid #bbb; margin-bottom:0; }
+      table { font-size:8pt; }
+      th { background:#efefef !important; color:#333; border-bottom:1px solid #bbb; padding:4px 4px; font-size:7pt; }
+      th[contenteditable]:hover, th[contenteditable]:focus { background:#efefef !important; color:#333; }
+      td { border-bottom:1px solid #e0e0e0; padding:3px 3px; }
+      tfoot td { background:#dce6f5 !important; border-top:2px solid #1a56db; }
+      tbody tr:hover td { background:transparent; }
+      [contenteditable].ce { border:none !important; background:none !important; padding:1px 3px; min-height:0; }
+      .ce-muted { color:#555; }
+      .col-malt { border-right:1px solid #ccc; }
+
+      .live-cur { color:#1a6b2a; font-size:7.5pt; padding:2px 0; }
+      .live-cur:empty { display:none; padding:0; }
+      .live-cur.stale { color:#888; }
+
+      .print-title { display:block !important; }
+    }
+    .print-title { display:none; font-size:14pt; font-weight:700; margin-bottom:6px; color:#111; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">&#9889; <span>Curb</span> Energy</div>
+  <a href="energy.html" data-i18n="nav_dash">Dashboard</a>
+  <a href="stats.html" data-i18n="nav_stat">Statistikk</a>
+  <a href="calibration.html" data-i18n="nav_cal">Kalibrering</a>
+  <a href="settings.html" data-i18n="nav_set">Innstillinger</a>
+  <a href="sysinfo.html" data-i18n="nav_sys">System</a>
+  <a href="serial-guide.html" data-i18n="nav_ser">Serial / Powerline</a>
+  <a href="usb.html" data-i18n="nav_usb">USB</a>
+  <a href="wifi.html" data-i18n="nav_wifi">WiFi</a>
+  <a href="kursliste.html" class="active" data-i18n="nav_kurs">Kursliste</a>
+  <a href="arduino.html" data-i18n="nav_ard">Arduino</a>
+  <a href="modules.html" data-i18n="nav_mod">Moduler</a>
+  <a href="cli.html" data-i18n="nav_cli">Terminal</a>
+  <div class="nav-right">
+    <div class="support-btns">
+      <a class="coffee-btn" href="https://buymeacoffee.com/vegardm" target="_blank" rel="noopener">
+        ☕ <span data-i18n="coffee">Kjøp meg en kaffe</span>
+      </a>
+      <a class="kofi-btn" href="https://ko-fi.com/D1D61JYEPS" target="_blank" rel="noopener">
+        <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" style="height:24px;">
+      </a>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="no" onclick="applyLang('no')">NO</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+</nav>
+
+<div id="update-banner" style="display:none;background:rgba(56,139,253,0.10);border-bottom:1px solid rgba(56,139,253,0.25);padding:7px 20px;font-size:0.80rem;color:#e6edf3;text-align:center;position:relative">
+  ⬆ <span data-i18n="update_avail">Ny versjon tilgjengelig:</span> <strong><a id="update-ver" href="https://github.com/vegard1977/curb-local/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none"></a></strong>
+  <button onclick="document.getElementById('update-banner').style.display='none'" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1">×</button>
+</div>
+
+<main>
+
+  <div class="print-title" id="print-title">Kursliste</div>
+
+  <h1 style="font-size:1.1rem;font-weight:700;color:#e6edf3;margin-bottom:14px" class="no-print" data-i18n="page_title">Kursliste — sikringsskap</h1>
+
+  <!-- Header info -->
+  <div class="info-panel">
+    <div class="info-row">
+      <span class="info-label" data-i18n="lbl_adr">Adresse</span>
+      <div class="info-val ce" contenteditable="true" id="hdr-adr" spellcheck="false">Sollia 26</div>
+    </div>
+    <div class="info-row">
+      <span class="info-label" data-i18n="lbl_maler">Målernr</span>
+      <div class="info-val ce" contenteditable="true" id="hdr-maler" spellcheck="false">099593</div>
+    </div>
+    <div class="info-row">
+      <span class="info-label" data-i18n="lbl_mpid">Målepunktid</span>
+      <div class="info-val ce" contenteditable="true" id="hdr-mpid" spellcheck="false">707057500041093545</div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar no-print">
+    <button class="btn btn-print" onclick="window.print()" data-i18n="btn_print">🖨 Skriv ut</button>
+    <button class="btn btn-reset" onclick="resetDefaults()" data-i18n="btn_reset">Tilbakestill</button>
+    <span class="save-status" id="save-status"></span>
+    <span id="live-status" style="font-size:0.70rem;color:var(--muted);margin-left:4px"></span>
+  </div>
+
+  <!-- Circuit table -->
+  <div class="table-wrap">
+    <table id="kurs-table">
+      <thead>
+        <tr>
+          <th class="col-nr"   style="text-align:center">Nr</th>
+          <th id="th-forbruker" contenteditable="true" spellcheck="false">Forbruker</th>
+          <th id="th-omrade"   contenteditable="true" spellcheck="false">Innstillt område</th>
+          <th id="th-malt"     contenteditable="true" spellcheck="false" class="col-malt" style="text-align:center">Målt A</th>
+          <th id="th-a"        contenteditable="true" spellcheck="false" class="col-a"    style="text-align:center">A</th>
+          <th id="th-type"     contenteditable="true" spellcheck="false" class="col-type" style="text-align:center">Type</th>
+          <th id="th-kabel"    contenteditable="true" spellcheck="false" class="col-kabel">Kabel mm²</th>
+          <th id="th-curb"     contenteditable="true" spellcheck="false" class="col-curb" style="text-align:center">Curb CT</th>
+        </tr>
+      </thead>
+      <tbody id="kurs-tbody"></tbody>
+      <tfoot>
+        <tr>
+          <td class="col-nr" style="color:var(--muted);font-size:0.74rem">—</td>
+          <td><div class="ce ce-foot"              contenteditable="true" id="ft-navn"   spellcheck="false">Overbelastningsvern</div></td>
+          <td><div class="ce ce-foot ce-muted"     contenteditable="true" id="ft-omrade" spellcheck="false"></div></td>
+          <td class="col-malt"><span class="live-cur" id="ft-live"></span></td>
+          <td><div class="ce ce-foot ce-center"    contenteditable="true" id="ft-a"      spellcheck="false">63A</div></td>
+          <td><div class="ce ce-foot ce-center"    contenteditable="true" id="ft-type"   spellcheck="false"></div></td>
+          <td><div class="ce ce-foot"              contenteditable="true" id="ft-kabel"  spellcheck="false"></div></td>
+          <td class="col-curb"><div class="ce ce-foot ce-muted ce-center" contenteditable="true" id="ft-curb" spellcheck="false"></div></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+</main>
+
+<footer>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v1.3</span></span>
+</footer>
+
+<script>
+const T = {
+  no: {
+    nav_dash:'Dashboard', nav_stat:'Statistikk', nav_cal:'Kalibrering', nav_set:'Innstillinger',
+    nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi', nav_kurs:'Kursliste',
+    page_title:'Kursliste — sikringsskap',
+    lbl_adr:'Adresse', lbl_maler:'Målernr', lbl_mpid:'Målepunktid',
+    btn_print:'🖨 Skriv ut', btn_reset:'Tilbakestill',
+    saved:'Lagret ✓', saving:'Lagrer…',
+    credit:'Utviklet av Vegard Myrvang', coffee:'Kjøp meg en kaffe',
+    update_avail:'Ny versjon tilgjengelig:',
+    confirm_reset:'Tilbakestill til standardverdier? Alt du har endret vil gå tapt.',
+  },
+  en: {
+    nav_dash:'Dashboard', nav_stat:'Statistics', nav_cal:'Calibration', nav_set:'Settings',
+    nav_sys:'System', nav_ser:'Serial / Powerline', nav_usb:'USB', nav_wifi:'WiFi', nav_kurs:'Circuit list',
+    page_title:'Circuit list — breaker panel',
+    lbl_adr:'Address', lbl_maler:'Meter no.', lbl_mpid:'Metering point ID',
+    btn_print:'🖨 Print', btn_reset:'Reset',
+    saved:'Saved ✓', saving:'Saving…',
+    credit:'Developed by Vegard Myrvang', coffee:'Buy me a coffee',
+    update_avail:'New version available:',
+    confirm_reset:'Reset to default values? All your edits will be lost.',
+  },
+};
+let lang = localStorage.getItem('curb_lang') || 'no';
+
+function applyLang(l) {
+  lang = l; localStorage.setItem('curb_lang', l);
+  const tr = T[l] || T.no;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    if (el.contentEditable === 'true') return;
+    const k = el.dataset.i18n;
+    if (tr[k] != null) el.textContent = tr[k];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+  updatePrintTitle();
+}
+
+function updatePrintTitle() {
+  const adr = document.getElementById('hdr-adr');
+  const pt  = document.getElementById('print-title');
+  if (adr && pt) pt.textContent = 'Kursliste — ' + (adr.textContent.trim() || 'sikringsskap');
+}
+
+// ── Default circuit data ───────────────────────────────────────────
+const DEFAULT = [
+  {nr:1,  navn:'Koktopp',                               omrade:'', a:'20', type:'C', kabel:'2×4',   curb:''},
+  {nr:2,  navn:'Komfyr',                                omrade:'', a:'16', type:'C', kabel:'2×2.5', curb:''},
+  {nr:3,  navn:'Kjøl / micro',                          omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:4,  navn:'Oppvask / stikk benk',                  omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:5,  navn:'VV tank',                               omrade:'', a:'10', type:'B', kabel:'2×1.5', curb:''},
+  {nr:6,  navn:'Ventilasjon',                           omrade:'', a:'16', type:'C', kabel:'2×1.5', curb:''},
+  {nr:7,  navn:'Stue',                                  omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:8,  navn:'Hall',                                  omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:9,  navn:'Vaskemaskin / lys benk kjøkken',        omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:10, navn:'Sov / lys / loftsstue / stikk trapp',   omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:11, navn:'Sov / loftsstue',                       omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:12, navn:'Stikk kjeller / gang',                  omrade:'', a:'16', type:'C', kabel:'2×2.5', curb:''},
+  {nr:13, navn:'Stikk kjellerstue',                     omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:14, navn:'Sentralstøvsuger',                      omrade:'', a:'16', type:'B', kabel:'2×1.5', curb:''},
+  {nr:15, navn:'Sov kjeller',                           omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:16, navn:'Kjøkken / stikk utendig terrasse',      omrade:'', a:'10', type:'B', kabel:'2×2.5', curb:''},
+  {nr:17, navn:'WC / vaskerom / stikk utendig inngang', omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:18, navn:'Bad 2. etg',                            omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:19, navn:'Reserve',                               omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:20, navn:'Ringeklokke',                           omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:21, navn:'Akvarerom',                             omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:22, navn:'Akvarierom',                            omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:23, navn:'Garasje',                               omrade:'', a:'16', type:'B', kabel:'2×2.5', curb:''},
+  {nr:24, navn:'Overspenningsvern',                     omrade:'', a:'40', type:'C', kabel:'3×6',   curb:''},
+  {nr:25, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:26, navn:'Ringeklokketrafo',                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:27, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:28, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:29, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:30, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:31, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:32, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:33, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:34, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:35, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+  {nr:36, navn:'',                                      omrade:'', a:'',   type:'',  kabel:'',       curb:''},
+];
+
+const DEFAULT_FOOTER = { navn:'Overbelastningsvern', omrade:'', a:'63A', type:'', kabel:'', curb:'' };
+
+const DEFAULT_TH = {
+  'th-forbruker': 'Forbruker',
+  'th-omrade':    'Innstillt område',
+  'th-malt':      'Målt A',
+  'th-a':         'A',
+  'th-type':      'Type',
+  'th-kabel':     'Kabel mm²',
+  'th-curb':      'Curb CT',
+};
+
+const STORE_ROWS = 'curb_kurs_rows_v1';
+const STORE_HDR  = 'curb_kurs_hdr_v1';
+const STORE_FOOT = 'curb_kurs_foot_v1';
+const STORE_TH   = 'curb_kurs_th_v1';
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Build tbody ────────────────────────────────────────────────────
+function buildTable(rows) {
+  const tbody = document.getElementById('kurs-tbody');
+  tbody.innerHTML = '';
+  rows.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.dataset.nr = c.nr;
+    tr.innerHTML =
+      `<td class="col-nr">${c.nr}</td>` +
+      `<td><div class="ce" contenteditable="true" spellcheck="false" data-f="navn">${esc(c.navn)}</div></td>` +
+      `<td><div class="ce ce-muted" contenteditable="true" spellcheck="false" data-f="omrade">${esc(c.omrade)}</div></td>` +
+      `<td class="col-malt"><span class="live-cur"></span></td>` +
+      `<td><div class="ce ce-center" contenteditable="true" spellcheck="false" data-f="a">${esc(c.a)}</div></td>` +
+      `<td><div class="ce ce-center" contenteditable="true" spellcheck="false" data-f="type">${esc(c.type)}</div></td>` +
+      `<td><div class="ce" contenteditable="true" spellcheck="false" data-f="kabel">${esc(c.kabel)}</div></td>` +
+      `<td class="col-curb"><div class="ce ce-muted ce-center" contenteditable="true" spellcheck="false" data-f="curb">${esc(c.curb)}</div></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Column header storage ─────────────────────────────────────────
+function restoreTh() {
+  let stored = null;
+  try { stored = JSON.parse(localStorage.getItem(STORE_TH) || 'null'); } catch(e) {}
+  Object.keys(DEFAULT_TH).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = (stored && stored[id] != null) ? stored[id] : DEFAULT_TH[id];
+  });
+}
+function readTh() {
+  const obj = {};
+  Object.keys(DEFAULT_TH).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) obj[id] = el.textContent;
+  });
+  return obj;
+}
+
+// ── Persist & restore ─────────────────────────────────────────────
+function restoreFooter(f) {
+  f = f || DEFAULT_FOOTER;
+  document.getElementById('ft-navn').textContent   = f.navn   ?? DEFAULT_FOOTER.navn;
+  document.getElementById('ft-omrade').textContent = f.omrade ?? '';
+  document.getElementById('ft-a').textContent      = f.a      ?? DEFAULT_FOOTER.a;
+  document.getElementById('ft-type').textContent   = f.type   ?? '';
+  document.getElementById('ft-kabel').textContent  = f.kabel  ?? '';
+  document.getElementById('ft-curb').textContent   = f.curb   ?? '';
+}
+
+function readRows() {
+  return Array.from(document.querySelectorAll('#kurs-tbody tr')).map(tr => {
+    const row = { nr: parseInt(tr.dataset.nr) };
+    tr.querySelectorAll('[data-f]').forEach(el => { row[el.dataset.f] = el.textContent; });
+    return row;
+  });
+}
+function readHdr() {
+  return {
+    adr:   document.getElementById('hdr-adr').textContent,
+    maler: document.getElementById('hdr-maler').textContent,
+    mpid:  document.getElementById('hdr-mpid').textContent,
+  };
+}
+function readFoot() {
+  return {
+    navn:   document.getElementById('ft-navn').textContent,
+    omrade: document.getElementById('ft-omrade').textContent,
+    a:      document.getElementById('ft-a').textContent,
+    type:   document.getElementById('ft-type').textContent,
+    kabel:  document.getElementById('ft-kabel').textContent,
+    curb:   document.getElementById('ft-curb').textContent,
+  };
+}
+
+function save() {
+  localStorage.setItem(STORE_ROWS, JSON.stringify(readRows()));
+  localStorage.setItem(STORE_HDR,  JSON.stringify(readHdr()));
+  localStorage.setItem(STORE_FOOT, JSON.stringify(readFoot()));
+  localStorage.setItem(STORE_TH,   JSON.stringify(readTh()));
+  const el = document.getElementById('save-status');
+  el.textContent = (T[lang] || T.no).saved;
+  setTimeout(() => { el.textContent = ''; }, 2000);
+}
+
+function restore() {
+  try {
+    const raw = localStorage.getItem(STORE_ROWS);
+    buildTable(raw ? JSON.parse(raw) : DEFAULT);
+  } catch(e) { buildTable(DEFAULT); }
+  try {
+    const h = JSON.parse(localStorage.getItem(STORE_HDR) || 'null');
+    if (h) {
+      document.getElementById('hdr-adr').textContent   = h.adr   || '';
+      document.getElementById('hdr-maler').textContent = h.maler || '';
+      document.getElementById('hdr-mpid').textContent  = h.mpid  || '';
+    }
+  } catch(e) {}
+  try {
+    const f = JSON.parse(localStorage.getItem(STORE_FOOT) || 'null');
+    restoreFooter(f);
+  } catch(e) { restoreFooter(null); }
+  restoreTh();
+  updatePrintTitle();
+}
+
+function resetDefaults() {
+  const tr = T[lang] || T.no;
+  if (!confirm(tr.confirm_reset)) return;
+  localStorage.removeItem(STORE_ROWS);
+  localStorage.removeItem(STORE_HDR);
+  localStorage.removeItem(STORE_FOOT);
+  localStorage.removeItem(STORE_TH);
+  buildTable(DEFAULT);
+  document.getElementById('hdr-adr').textContent   = 'Sollia 26';
+  document.getElementById('hdr-maler').textContent = '099593';
+  document.getElementById('hdr-mpid').textContent  = '707057500041093545';
+  restoreFooter(null);
+  Object.keys(DEFAULT_TH).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = DEFAULT_TH[id];
+  });
+  updatePrintTitle();
+  updateLiveCurrent();
+}
+
+// ── Debounced auto-save ───────────────────────────────────────────
+let saveTimer = null;
+function scheduleSave() {
+  document.getElementById('save-status').textContent = (T[lang] || T.no).saving;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 900);
+}
+
+// ── Block Enter / strip paste formatting ──────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('[contenteditable]')) {
+    e.preventDefault(); e.target.blur();
+  }
+});
+document.addEventListener('paste', e => {
+  if (!e.target.matches('[contenteditable]')) return;
+  e.preventDefault();
+  document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+});
+
+// ── Input → save + live update ────────────────────────────────────
+document.addEventListener('input', e => {
+  if (!e.target.matches('[contenteditable]')) return;
+  scheduleSave();
+  if (e.target.id === 'hdr-adr') updatePrintTitle();
+  if (e.target.dataset.f === 'curb' || e.target.id === 'ft-curb') updateLiveCurrent();
+});
+
+// ── Live current ──────────────────────────────────────────────────
+let liveData  = null;
+let liveStale = false;
+
+function parseCT(text) {
+  const m = String(text || '').match(/\d+/);
+  return m ? parseInt(m[0]) : null;
+}
+
+function updateLiveCurrent() {
+  // tbody rows
+  document.querySelectorAll('#kurs-tbody tr').forEach(tr => {
+    const ceDiv = tr.querySelector('[data-f="curb"]');
+    const span  = tr.querySelector('.live-cur');
+    if (!ceDiv || !span) return;
+    setLiveSpan(span, ceDiv.textContent.trim());
+  });
+  // footer
+  const ftCurb = document.getElementById('ft-curb');
+  const ftLive = document.getElementById('ft-live');
+  if (ftCurb && ftLive) setLiveSpan(ftLive, ftCurb.textContent.trim());
+}
+
+function setLiveSpan(span, ctText) {
+  const num = parseCT(ctText);
+  if (num == null || !liveData) { span.textContent = ''; return; }
+  const idx = num - 1;
+  const c = Array.isArray(liveData) ? liveData[idx] : null;
+  if (!c) { span.textContent = ''; return; }
+  const amp = c.a ?? c.i ?? c.current ?? c.amps;
+  if (amp != null && !isNaN(amp)) {
+    span.textContent = parseFloat(amp).toFixed(2) + ' A';
+    span.className = 'live-cur' + (liveStale ? ' stale' : '');
+  } else {
+    span.textContent = '';
+  }
+}
+
+async function fetchLive() {
+  const statusEl = document.getElementById('live-status');
+  try {
+    const r = await fetch('http://' + location.hostname + '/latest.json?_=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    liveData  = Array.isArray(d) ? d : (d.circuits || d.data || d);
+    liveStale = false;
+    if (statusEl) statusEl.textContent = '';
+    updateLiveCurrent();
+  } catch(e) {
+    liveStale = true;
+    if (statusEl) statusEl.textContent = '⚡ offline';
+    document.querySelectorAll('.live-cur').forEach(s => {
+      if (s.textContent) s.className = 'live-cur stale';
+    });
+  }
+}
+
+fetchLive();
+setInterval(fetchLive, 5000);
+
+// ── Init ──────────────────────────────────────────────────────────
+restore();
+applyLang(lang);
+
+// ── GitHub version check ──────────────────────────────────────────
+(async () => {
+  try {
+    const r = await fetch('https://api.github.com/repos/vegard1977/curb-local/releases/latest', { cache: 'no-store' });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j.tag_name && j.tag_name !== 'v1.3') {
+      document.getElementById('update-ver').textContent = j.tag_name;
+      const b = document.getElementById('update-banner');
+      if (b) b.style.display = 'block';
+    }
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>
