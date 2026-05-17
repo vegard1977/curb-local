@@ -374,9 +374,10 @@ function renderAmsDevices(devices) {
     const s      = dev.apparent_power  || 0;
     const pf     = dev.power_factor    || 0;
     const phi    = dev.phase_angle     || 0;
-    // L2: beregnet fra AMS (alltid), ekte Mega-verdi når tilgjengelig (fremtidig)
-    const l2calc = ic.l2 || 0;
-    const l2src  = ic.l2_source || 'calc';  // 'calc' | 'mega'
+    // L2: alltid beregnet frå AMS (≈), og ekte Mega-verdi i tillegg når tilgjengeleg
+    const l2calc = ic.l2      || 0;
+    const l2mega = ic.l2_mega;            // undefined = ikkje tilgjengeleg enno
+    const hasMega = l2mega !== undefined && l2mega !== null;
 
     const section = document.createElement('div');
     section.className = 'ams-section';
@@ -388,12 +389,17 @@ function renderAmsDevices(devices) {
       { key: 'l2l3', label: tr.ams_u23 },
     ];
 
-    // L2-celle: vis beregnet (alltid), og ekte Mega-verdi under dersom l2_source == 'mega'
+    // L2-celle: alltid beregnet (≈), og ekte Mega-linje under når begge finnes
     const l2cell = `
-      <div class="ams-phase${l2src === 'calc' ? ' calc' : ''}">
+      <div class="ams-phase calc">
         <div class="ams-phase-label">${tr.ams_l2}</div>
         <div class="ams-phase-v">${l2calc.toFixed(2)}<span class="ams-phase-unit">A</span></div>
-        <div class="ams-calc-badge">≈ ${l2src === 'calc' ? tr.ams_l2_calc : tr.ams_l2_mega}</div>
+        <div class="ams-calc-badge">≈ ${tr.ams_l2_calc}</div>
+        ${hasMega ? `
+        <div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(56,139,253,.2)">
+          <div class="ams-phase-v" style="font-size:1.1rem">${Number(l2mega).toFixed(2)}<span class="ams-phase-unit">A</span></div>
+          <div class="ams-calc-badge" style="color:var(--green)">${tr.ams_l2_mega}</div>
+        </div>` : ''}
       </div>`;
 
     section.innerHTML = `
