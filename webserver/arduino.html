@@ -82,7 +82,10 @@
     .ams-port  { font-size: 0.70rem; color: var(--muted); font-family: monospace; }
     .ams-body  { padding: 14px 16px; }
     .ams-phase-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
-    .ams-current-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
+    .ams-current-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+    .ams-phase.calc { background: rgba(56,139,253,.04); border-style: dashed; }
+    .ams-calc-badge { font-size: 0.60rem; color: var(--muted); font-style: italic; margin-top: 2px; }
+    .ams-dual-i { font-size: 0.78rem; font-variant-numeric: tabular-nums; margin-top: 2px; }
     .ams-phase { background: rgba(56,139,253,.07); border: 1px solid rgba(56,139,253,.2); border-radius: 6px; padding: 10px 12px; text-align: center; }
     .ams-phase-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
     .ams-phase-v { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); line-height: 1.1; }
@@ -184,7 +187,8 @@ const T = {
     locale:'no-NO',
     panel_top:'Sikringsskap topp', panel_bottom:'Sikringsskap bunn',
     ams_u12:'U L1–L2', ams_u13:'U L1–L3', ams_u23:'U L2–L3',
-    ams_l1:'L1 strøm', ams_l3:'L3 strøm',
+    ams_l1:'L1', ams_l2:'L2', ams_l3:'L3',
+    ams_l2_calc:'beregnet', ams_l2_mega:'målt',
     ams_import:'Import', ams_export:'Eksport',
     ams_q:'Reaktiv', ams_s:'Tilsyn.', ams_pf:'Effektfaktor', ams_phi:'Fasevinkel',
   },
@@ -204,7 +208,8 @@ const T = {
     locale:'en-GB',
     panel_top:'Distribution panel top', panel_bottom:'Distribution panel bottom',
     ams_u12:'U L1–L2', ams_u13:'U L1–L3', ams_u23:'U L2–L3',
-    ams_l1:'L1 current', ams_l3:'L3 current',
+    ams_l1:'L1', ams_l2:'L2', ams_l3:'L3',
+    ams_l2_calc:'calculated', ams_l2_mega:'measured',
     ams_import:'Import', ams_export:'Export',
     ams_q:'Reactive', ams_s:'Apparent', ams_pf:'Power factor', ams_phi:'Phase angle',
   },
@@ -361,14 +366,17 @@ function renderAmsDevices(devices) {
   for (const dev of devices) {
     if (!dev.voltages) continue;
 
-    const v   = dev.voltages        || {};
-    const ic  = dev.phase_currents  || {};
-    const p   = dev.active_power    || 0;
-    const px  = dev.export_power    || 0;
-    const q   = dev.reactive_power  || 0;
-    const s   = dev.apparent_power  || 0;
-    const pf  = dev.power_factor    || 0;
-    const phi = dev.phase_angle     || 0;
+    const v      = dev.voltages        || {};
+    const ic     = dev.phase_currents  || {};
+    const p      = dev.active_power    || 0;
+    const px     = dev.export_power    || 0;
+    const q      = dev.reactive_power  || 0;
+    const s      = dev.apparent_power  || 0;
+    const pf     = dev.power_factor    || 0;
+    const phi    = dev.phase_angle     || 0;
+    // L2: beregnet fra AMS (alltid), ekte Mega-verdi når tilgjengelig (fremtidig)
+    const l2calc = ic.l2 || 0;
+    const l2src  = ic.l2_source || 'calc';  // 'calc' | 'mega'
 
     const section = document.createElement('div');
     section.className = 'ams-section';
@@ -379,11 +387,14 @@ function renderAmsDevices(devices) {
       { key: 'l1l3', label: tr.ams_u13 },
       { key: 'l2l3', label: tr.ams_u23 },
     ];
-    // Fasestrøm: L1 og L3 (L2 fra Arduino Mega)
-    const currRows = [
-      { key: 'l1', label: tr.ams_l1 },
-      { key: 'l3', label: tr.ams_l3 },
-    ];
+
+    // L2-celle: vis beregnet (alltid), og ekte Mega-verdi under dersom l2_source == 'mega'
+    const l2cell = `
+      <div class="ams-phase${l2src === 'calc' ? ' calc' : ''}">
+        <div class="ams-phase-label">${tr.ams_l2}</div>
+        <div class="ams-phase-v">${l2calc.toFixed(2)}<span class="ams-phase-unit">A</span></div>
+        <div class="ams-calc-badge">≈ ${l2src === 'calc' ? tr.ams_l2_calc : tr.ams_l2_mega}</div>
+      </div>`;
 
     section.innerHTML = `
       <div class="ams-hdr">
@@ -400,12 +411,15 @@ function renderAmsDevices(devices) {
           `).join('')}
         </div>
         <div class="ams-current-grid">
-          ${currRows.map(r => `
-            <div class="ams-phase">
-              <div class="ams-phase-label">${r.label}</div>
-              <div class="ams-phase-v">${(ic[r.key]||0).toFixed(2)}<span class="ams-phase-unit">A</span></div>
-            </div>
-          `).join('')}
+          <div class="ams-phase">
+            <div class="ams-phase-label">${tr.ams_l1}</div>
+            <div class="ams-phase-v">${(ic.l1||0).toFixed(2)}<span class="ams-phase-unit">A</span></div>
+          </div>
+          ${l2cell}
+          <div class="ams-phase">
+            <div class="ams-phase-label">${tr.ams_l3}</div>
+            <div class="ams-phase-v">${(ic.l3||0).toFixed(2)}<span class="ams-phase-unit">A</span></div>
+          </div>
         </div>
         <div class="ams-summary">
           <div class="ams-kv">

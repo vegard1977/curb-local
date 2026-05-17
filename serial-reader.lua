@@ -206,6 +206,7 @@ local function send_discovery(dev)
       { id='u13_v', name='AMS U L1-L3',          topic='ams/u13_v', unit='V',   cls='voltage' },
       { id='u23_v', name='AMS U L2-L3',          topic='ams/u23_v', unit='V',   cls='voltage' },
       { id='l1_i',  name='AMS L1 Strom',         topic='ams/l1_i',  unit='A',   cls='current' },
+      { id='l2_i',  name='AMS L2 Strom (beregnet)', topic='ams/l2_i', unit='A', cls='current' },
       { id='l3_i',  name='AMS L3 Strom',         topic='ams/l3_i',  unit='A',   cls='current' },
       { id='power',  name='AMS Import',           topic='ams/power', unit='W',   cls='power' },
       { id='export', name='AMS Eksport',          topic='ams/export',unit='W',   cls='power' },
@@ -228,7 +229,7 @@ local function send_discovery(dev)
       if s.unit then cfg.unit_of_measurement   = s.unit end
       pub(cfg_topic, json.encode(cfg), true)
     end
-    logger:info('[%s] AMS discovery sendt (11 sensorer)', dev.label)
+    logger:info('[%s] AMS discovery sendt (12 sensorer)', dev.label)
   end
 
   logger:info('[%s] Discovery sendt (%d CT, %d temp)', dev.label, dev.num_ct or 0, dev.num_temp or 0)
@@ -262,12 +263,17 @@ local function process_line(dev, line)
     return
   end
 
-  -- ── AMS/amsreader-format: {u12,u13,u23, i1,i3, p,px,q,s,pf,phi} ─────────
-  -- Spenning er linje-til-linje. L2 strom mangler (leveres av Arduino Mega).
+  -- ── AMS/amsreader-format: {u12,u13,u23, i1,i2,i3, p,px,q,s,pf,phi} ──────
+  -- Spenning er linje-til-linje (IT-nett 230V L-L).
+  -- i2 er beregnet i firmware: sqrt(I1^2+I3^2+I1*I3) — kilde merkes 'calc'.
   -- q/s/pf/phi er beregnet i firmware fra aktiv+reaktiv effekt.
   if data.u12 ~= nil then
     dev.last_voltages       = { l1l2 = data.u12, l1l3 = data.u13 or 0, l2l3 = data.u23 or 0 }
-    dev.last_phase_currents = { l1 = data.i1 or 0, l3 = data.i3 or 0 }
+    dev.last_phase_currents = {
+      l1 = data.i1 or 0,
+      l2 = data.i2 or 0, l2_source = 'calc',   -- erstattes med 'mega' nar ekte CT-verdi kjem
+      l3 = data.i3 or 0,
+    }
     dev.last_power          = data.p   or 0
     dev.last_power_export   = data.px  or 0
     dev.last_q              = data.q   or 0
@@ -279,6 +285,7 @@ local function process_line(dev, line)
     pub(BASE_TOPIC .. '/ams/u13_v', string.format('%.1f', data.u13 or 0))
     pub(BASE_TOPIC .. '/ams/u23_v', string.format('%.1f', data.u23 or 0))
     pub(BASE_TOPIC .. '/ams/l1_i',  string.format('%.2f', data.i1  or 0))
+    pub(BASE_TOPIC .. '/ams/l2_i',  string.format('%.2f', data.i2  or 0))
     pub(BASE_TOPIC .. '/ams/l3_i',  string.format('%.2f', data.i3  or 0))
     pub(BASE_TOPIC .. '/ams/power',  tostring(data.p  or 0))
     pub(BASE_TOPIC .. '/ams/export', tostring(data.px or 0))
@@ -287,10 +294,10 @@ local function process_line(dev, line)
     pub(BASE_TOPIC .. '/ams/pf',     string.format('%.3f', data.pf or 0))
     pub(BASE_TOPIC .. '/ams/phi',    string.format('%.1f', data.phi or 0))
 
-    logger:debug('[%s] AMS U12=%.1f U13=%.1f U23=%.1f V  I1=%.2f I3=%.2f A  P=%d Q=%d S=%.0f VA  PF=%.3f  phi=%.1f°',
+    logger:debug('[%s] AMS U12=%.1f U13=%.1f U23=%.1f V  I1=%.2f I2≈%.2f I3=%.2f A  P=%d Q=%d S=%.0f VA  PF=%.3f  phi=%.1f°',
       dev.label,
       data.u12, data.u13 or 0, data.u23 or 0,
-      data.i1 or 0, data.i3 or 0,
+      data.i1 or 0, data.i2 or 0, data.i3 or 0,
       data.p or 0, data.q or 0, data.s or 0,
       data.pf or 0, data.phi or 0)
     return
