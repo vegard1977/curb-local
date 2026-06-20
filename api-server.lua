@@ -772,6 +772,14 @@ wait_wlan() {  # arg: sekunder a vente (default 10)
 
 case "$1" in
   start)
+    # ARP flux-fiks: eth1 (powerline) og wlan0 er pa samme subnet. Uten dette
+    # svarer Linux pa ARP for alle sine IP-er med ett interfaces MAC, slik at
+    # ruteren blander .107/.111 og WiFi-only ikke virker. arp_ignore=1 +
+    # arp_announce=2 gjor at hvert interface kun eier sin egen IP.
+    echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore 2>/dev/null
+    echo 2 > /proc/sys/net/ipv4/conf/all/arp_announce 2>/dev/null
+    echo 1 > /proc/sys/net/ipv4/conf/default/arp_ignore 2>/dev/null
+    echo 2 > /proc/sys/net/ipv4/conf/default/arp_announce 2>/dev/null
     # Vent til USB-hub + AR9271 er enumerert (maks 15s)
     i=0; while [ $i -lt 15 ] && ! find_dev >/dev/null 2>&1; do sleep 1; i=$((i+1)); done
     DEV=$(find_dev)
