@@ -237,11 +237,11 @@
 </main>
 
 <footer>
-  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v2.1</span></span>
+  <span><span data-i18n="credit">Utviklet av Vegard Myrvang</span> &mdash; <span>v2.2</span></span>
 </footer>
 
 <script>
-const APP_VERSION = 'v2.1';
+const APP_VERSION = 'v2.2';
 const API = 'http://' + location.hostname + ':8080';
 
 const T = {
@@ -392,7 +392,8 @@ async function doScan() {
     const r = await fetch(API + '/api/wifi/scan', {method:'POST'});
     const d = await r.json();
     if (!r.ok) { showToast('toast-scan', d.error, false); list.innerHTML = ''; return; }
-    renderNetworks(d.networks || []);
+    // Tom Lua-tabell serialiseres som {} (objekt), ikke []. Tving til array.
+    renderNetworks(Array.isArray(d.networks) ? d.networks : []);
   } catch(e) {
     showToast('toast-scan', String(e), false);
     list.innerHTML = '';

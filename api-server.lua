@@ -22,7 +22,7 @@ local fileLog = require('logging.rolling_file')
 
 local logger = fileLog('/var/log/api-server.log', 256 * 1024, 2)
 logger:setLevel(logging.INFO)
-logger:info('api-server v1.3 starting on port 8080')
+logger:info('api-server v1.4 starting on port 8080')
 
 -- ?????? Filer ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 local WEB_VERSION   = 'v1.2'
@@ -740,41 +740,99 @@ end
 -- ?????? WiFi ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 local WIFI_AUTOSTART_CONTENT = [[#!/bin/sh
-# S51wifi -- AR9271 WiFi autostart
-# Generert av Curb web-grensesnitt
+# S51wifi -- AR9271 (ath9k_htc) WiFi autostart med firmware-recovery
+# Generert av Curb web-grensesnitt.
+#
+# ath9k_htc feiler ofte ved forste firmware-init etter boot
+# ("Target is unresponsive") slik at wlan0 aldri opprettes. Vi soft
+# power-cycler USB-enheten (echo 0/1 > authorized) inntil wlan0 dukker opp.
+IFACE=wlan0
+VID=0cf3
+PID=9271
+
+find_dev() {
+  for d in /sys/bus/usb/devices/*/idProduct; do
+    dev=$(dirname "$d")
+    if [ "$(cat "$dev/idVendor" 2>/dev/null)" = "$VID" ] && \
+       [ "$(cat "$d" 2>/dev/null)" = "$PID" ]; then
+      basename "$dev"; return 0
+    fi
+  done
+  return 1
+}
+
+wait_wlan() {
+  i=0
+  while [ $i -lt 10 ]; do
+    /sbin/ip link show $IFACE >/dev/null 2>&1 && return 0
+    sleep 1; i=$((i+1))
+  done
+  return 1
+}
+
 case "$1" in
   start)
-    modprobe ath9k_htc 2>/dev/null
-    i=0; while [ $i -lt 15 ] && ! ip link show wlan0 >/dev/null 2>&1; do sleep 1; i=$((i+1)); done
-    ip link set wlan0 up 2>/dev/null
-    /usr/sbin/wpa_supplicant -B -D nl80211,wext -i wlan0 -c /etc/wpa_supplicant.conf 2>/dev/null
-    udhcpc -i wlan0 -q -t 15 2>/dev/null
+    # Vent til USB-hub + AR9271 er enumerert (maks 15s)
+    i=0; while [ $i -lt 15 ] && ! find_dev >/dev/null 2>&1; do sleep 1; i=$((i+1)); done
+    DEV=$(find_dev)
+    [ -z "$DEV" ] && { echo "S51wifi: AR9271 (0cf3:9271) ikke funnet"; exit 0; }
+    # Power-cycle inntil wlan0 dukker opp (maks 4 forsok)
+    try=0
+    while [ $try -lt 4 ] && ! /sbin/ip link show $IFACE >/dev/null 2>&1; do
+      echo 0 > /sys/bus/usb/devices/$DEV/authorized 2>/dev/null
+      sleep 2
+      echo 1 > /sys/bus/usb/devices/$DEV/authorized 2>/dev/null
+      wait_wlan && break
+      try=$((try+1))
+    done
+    if ! /sbin/ip link show $IFACE >/dev/null 2>&1; then
+      echo "S51wifi: $IFACE kom ikke opp etter $try forsok"; exit 0
+    fi
+    /sbin/ip link set $IFACE up 2>/dev/null
+    # Rydd evt. wpa_supplicant/wpa_cli som ble startet for wlan0 fantes
+    # (S35wpa_supplicant) sa vi ikke far to instanser som kniver om wlan0.
+    killall wpa_supplicant wpa_cli 2>/dev/null; sleep 1
+    if [ -f /etc/wpa_supplicant.conf ]; then
+      /usr/sbin/wpa_supplicant -B -D nl80211 -i $IFACE -c /etc/wpa_supplicant.conf 2>/dev/null
+      /sbin/udhcpc -i $IFACE -b -t 20 2>/dev/null
+    fi
     ;;
   stop)
-    killall wpa_supplicant 2>/dev/null
+    killall wpa_supplicant wpa_cli 2>/dev/null
     killall udhcpc 2>/dev/null
-    ip link set wlan0 down 2>/dev/null
+    /sbin/ip link set $IFACE down 2>/dev/null
     ;;
   *) echo "Usage: $0 {start|stop}"; exit 1 ;;
 esac
 ]]
 
+-- Konverter signalstyrke i dBm til omtrentlig prosent (-100..-50 dBm -> 0..100 %)
+local function dbm_to_pct(dbm)
+  local pct = math.floor(2 * (dbm + 100))
+  if pct < 0 then return 0 elseif pct > 100 then return 100 else return pct end
+end
+
 local function handle_get_wifi_status(client)
-  local present = shell_ok('ip link show ' .. WIFI_IFACE)
-  local up = present and shell_read('ip link show ' .. WIFI_IFACE):find('UP') ~= nil
-  local ssid = up and shell_read('/sbin/iwgetid -r ' .. WIFI_IFACE .. ' 2>/dev/null') or ''
-  local ip   = ''
+  local present = shell_ok('/sbin/ip link show ' .. WIFI_IFACE)
+  local up = present and shell_read('/sbin/ip link show ' .. WIFI_IFACE):find('[<,]UP[,>]') ~= nil
+  -- AR9271/ath9k_htc bruker nl80211 (cfg80211) -- gamle wext-verktoy (iwgetid/iwconfig)
+  -- sier "no wireless extensions". Bruk 'iw' for SSID og signal i stedet.
+  local ssid, signal_pct = '', 0
   if up then
-    local addr = shell_read('ip addr show ' .. WIFI_IFACE .. ' 2>/dev/null')
+    local link = shell_read('/usr/sbin/iw dev ' .. WIFI_IFACE .. ' link 2>/dev/null')
+    ssid = link:match('SSID:%s*([^\n]+)') or ''
+    ssid = ssid:gsub('%s+$', '')
+    local dbm = link:match('signal:%s*(%-?%d+)')
+    if ssid ~= '' and dbm then signal_pct = dbm_to_pct(tonumber(dbm)) end
+  end
+  local ip = ''
+  if up then
+    local addr = shell_read('/sbin/ip addr show ' .. WIFI_IFACE .. ' 2>/dev/null')
     ip = addr:match('inet (%d+%.%d+%.%d+%.%d+)') or ''
   end
-  local signal_pct = 0
-  if up and ssid ~= '' then
-    local iw = shell_read('/sbin/iwconfig ' .. WIFI_IFACE .. ' 2>/dev/null')
-    local q, qt = iw:match('Link Quality=(%d+)/(%d+)')
-    if q and qt then signal_pct = math.floor(tonumber(q) / tonumber(qt) * 100) end
-  end
-  local module_loaded = shell_read('cat /proc/modules 2>/dev/null'):find('ath9k_htc') ~= nil
+  -- ath9k_htc er innebygd i kjernen pa Curb (ikke i /proc/modules). Driveren regnes
+  -- som "lastet" nar firmware er overfort og en ieee80211-phy er opprettet.
+  local module_loaded = shell_read('ls /sys/class/ieee80211/ 2>/dev/null'):find('phy') ~= nil
   json_ok(client, {
     present = present, up = up, ssid = ssid, ip = ip,
     signal_pct = signal_pct, module_loaded = module_loaded,
@@ -783,28 +841,34 @@ local function handle_get_wifi_status(client)
 end
 
 local function handle_post_wifi_scan(client)
-  if not shell_ok('ip link show ' .. WIFI_IFACE) then
+  if not shell_ok('/sbin/ip link show ' .. WIFI_IFACE) then
     return json_err(client, '400 Bad Request', 'wlan0 ikke tilgjengelig ??? WiFi-dongle tilkoblet?')
   end
-  shell_ok('ip link set ' .. WIFI_IFACE .. ' up 2>/dev/null')
-  local raw = shell_read('/sbin/iwlist ' .. WIFI_IFACE .. ' scan 2>/dev/null')
+  shell_ok('/sbin/ip link set ' .. WIFI_IFACE .. ' up 2>/dev/null')
+  -- AR9271 bruker nl80211 -> 'iwlist scan' gir ingenting. Bruk 'iw ... scan'.
+  local raw = shell_read('/usr/sbin/iw dev ' .. WIFI_IFACE .. ' scan 2>/dev/null')
   local networks, seen, cur = {}, {}, nil
-  for line in (raw .. '\n'):gmatch('[^\n]+') do
-    if line:find('Cell %d+') then
-      if cur and cur.ssid ~= '' and not seen[cur.ssid] then
-        seen[cur.ssid] = true; table.insert(networks, cur)
-      end
-      cur = {ssid='', signal=0, security='open'}
-    elseif cur then
-      local essid = line:match('ESSID:"([^"]*)"')
-      if essid and essid ~= '' then cur.ssid = essid end
-      local q, qt = line:match('Quality=(%d+)/(%d+)')
-      if q then cur.signal = math.floor(tonumber(q) / tonumber(qt) * 100) end
-      if line:find('WPA2') or line:find('RSN:') then cur.security = 'WPA2'
-      elseif line:find('WPA:') or line:find('WPA ') then cur.security = 'WPA' end
+  local function flush()
+    if cur and cur.ssid ~= '' and not seen[cur.ssid] then
+      seen[cur.ssid] = true; table.insert(networks, cur)
     end
   end
-  if cur and cur.ssid ~= '' and not seen[cur.ssid] then table.insert(networks, cur) end
+  for line in (raw .. '\n'):gmatch('[^\n]+') do
+    if line:find('^BSS ') then
+      flush()
+      cur = {ssid='', signal=0, security='open'}
+    elseif cur then
+      local ssid = line:match('^%s*SSID:%s*(.-)%s*$')
+      if ssid and ssid ~= '' then cur.ssid = ssid end
+      local dbm = line:match('signal:%s*(%-?[%d%.]+)')
+      if dbm then cur.signal = dbm_to_pct(tonumber(dbm)) end
+      if line:find('RSN:') then cur.security = 'WPA2'
+      elseif line:find('WPA:') then if cur.security == 'open' then cur.security = 'WPA' end end
+    end
+  end
+  flush()
+  -- Sorter sterkest forst (JS gjentar dette, men greit a levere ferdig sortert)
+  table.sort(networks, function(a, b) return a.signal > b.signal end)
   json_ok(client, {networks = networks})
 end
 
