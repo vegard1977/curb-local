@@ -806,6 +806,9 @@ case "$1" in
     if [ -f /etc/wpa_supplicant.conf ]; then
       /usr/sbin/wpa_supplicant -B -D nl80211 -i $IFACE -c /etc/wpa_supplicant.conf 2>/dev/null
       /sbin/udhcpc -i $IFACE -b -t 20 2>/dev/null
+      # Annonser IP-en pa WiFi (gratuitous ARP) sa ruteren ikke holder den
+      # bundet til en evt. kablet port. wifi_cron.sh gjentar dette hvert minutt.
+      ( sleep 8; WIP=$(/sbin/ip addr show $IFACE 2>/dev/null | sed -n "s/.*inet \([0-9.]*\).*/\1/p" | head -1); [ -n "$WIP" ] && /usr/sbin/arping -U -I $IFACE -c 3 "$WIP" >/dev/null 2>&1 ) &
     fi
     ;;
   stop)
