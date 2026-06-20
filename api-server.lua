@@ -761,9 +761,9 @@ find_dev() {
   return 1
 }
 
-wait_wlan() {
+wait_wlan() {  # arg: sekunder a vente (default 10)
   i=0
-  while [ $i -lt 10 ]; do
+  while [ $i -lt "${1:-10}" ]; do
     /sbin/ip link show $IFACE >/dev/null 2>&1 && return 0
     sleep 1; i=$((i+1))
   done
@@ -776,22 +776,25 @@ case "$1" in
     i=0; while [ $i -lt 15 ] && ! find_dev >/dev/null 2>&1; do sleep 1; i=$((i+1)); done
     DEV=$(find_dev)
     [ -z "$DEV" ] && { echo "S51wifi: AR9271 (0cf3:9271) ikke funnet"; exit 0; }
-    # Power-cycle inntil wlan0 dukker opp (maks 4 forsok)
-    try=0
-    while [ $try -lt 4 ] && ! /sbin/ip link show $IFACE >/dev/null 2>&1; do
+    # Kernel-probe lager wlan0 av seg selv det meste av tiden -- vent generost
+    # forst (opptil 25s) UTEN a roere noe.
+    if ! wait_wlan 25; then
+      # Fortsatt ingen wlan0 -> EN enkelt power-cycle med lang settle.
+      # VIKTIG: rask gjentatt cycling wedger AR9271 totalt (da hjelper bare
+      # reboot). Derfor kun ETT forsok her; wifi_cron.sh prover igjen hvert
+      # minutt, og hvilen mellom forsokene er nettopp det adapteren trenger.
       echo 0 > /sys/bus/usb/devices/$DEV/authorized 2>/dev/null
-      sleep 2
+      sleep 5
       echo 1 > /sys/bus/usb/devices/$DEV/authorized 2>/dev/null
-      wait_wlan && break
-      try=$((try+1))
-    done
+      wait_wlan 15
+    fi
     if ! /sbin/ip link show $IFACE >/dev/null 2>&1; then
-      echo "S51wifi: $IFACE kom ikke opp etter $try forsok"; exit 0
+      echo "S51wifi: $IFACE kom ikke opp (wifi_cron prover igjen om 1 min)"; exit 0
     fi
     /sbin/ip link set $IFACE up 2>/dev/null
     # Rydd evt. wpa_supplicant/wpa_cli som ble startet for wlan0 fantes
     # (S35wpa_supplicant) sa vi ikke far to instanser som kniver om wlan0.
-    killall wpa_supplicant wpa_cli 2>/dev/null; sleep 1
+    killall wpa_supplicant wpa_cli udhcpc 2>/dev/null; sleep 1
     if [ -f /etc/wpa_supplicant.conf ]; then
       /usr/sbin/wpa_supplicant -B -D nl80211 -i $IFACE -c /etc/wpa_supplicant.conf 2>/dev/null
       /sbin/udhcpc -i $IFACE -b -t 20 2>/dev/null
