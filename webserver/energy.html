@@ -65,7 +65,7 @@
 
     /* ── Circuit rows ────────────────────────────────────────────────────── */
     .circ-list { flex: 1; padding: 4px 0; }
-    .circ-row { display: grid; grid-template-columns: 1fr minmax(40px,2.2fr) 54px 36px; gap: 6px; align-items: center; padding: 5px 14px; }
+    .circ-row { display: grid; grid-template-columns: 1fr minmax(40px,2.2fr) 54px 40px 44px; gap: 6px; align-items: center; padding: 5px 14px; }
     .circ-row:hover { background: rgba(255,255,255,.025); }
     .circ-name { font-size: 0.76rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .circ-name.off { color: var(--muted); }
@@ -76,7 +76,8 @@
     .fill-g3 { background: var(--g3); }
     .circ-w { font-size: 0.76rem; font-variant-numeric: tabular-nums; color: var(--text); text-align: right; white-space: nowrap; }
     .circ-a { font-size: 0.70rem; font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; white-space: nowrap; }
-    .circ-row.off .circ-w, .circ-row.off .circ-a { color: var(--muted); }
+    .circ-pf { font-size: 0.70rem; font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; white-space: nowrap; }
+    .circ-row.off .circ-w, .circ-row.off .circ-a, .circ-row.off .circ-pf { color: var(--muted); }
 
     /* ── Pie card ────────────────────────────────────────────────────────── */
     .pie-body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 16px; flex: 1; gap: 0; }
@@ -276,7 +277,8 @@ GROUPS.forEach(g => {
       '<span class="circ-name off" id="cn'+i+'">'+names[i]+'</span>'+
       '<div class="cbar"><div class="cbar-fill '+g.fillCls+'" id="bar'+i+'" style="width:0%"></div></div>'+
       '<span class="circ-w" id="cw'+i+'">—</span>'+
-      '<span class="circ-a" id="ca'+i+'">—</span>';
+      '<span class="circ-a" id="ca'+i+'">—</span>'+
+      '<span class="circ-pf" id="cpf'+i+'">—</span>';
     list.appendChild(row);
   }
 });
@@ -374,7 +376,7 @@ async function poll() {
 
     circuits.forEach((c,i)=>{
       if(!c||i>=NUM) return;
-      const w=c.power||0, a=c.current||0, v=c.voltage||0;
+      const w=c.power||0, a=c.current||0, v=c.voltage||0, pf=c.power_factor||0;
       const gi=i<6?0:i<12?1:2;
       totW+=w; totA+=a; if(v>0) volt=v; if(w>1) active++;
       gw[gi]+=w;
@@ -385,6 +387,7 @@ async function poll() {
       document.getElementById('bar'+i).style.width=(gMax[gi]>0?w/gMax[gi]*100:0).toFixed(1)+'%';
       document.getElementById('cw'+i).textContent=w>=1000?(w/1000).toFixed(2)+' kW':Math.round(w)+' W';
       document.getElementById('ca'+i).textContent=a.toFixed(1)+' A';
+      document.getElementById('cpf'+i).textContent=on?pf.toFixed(2):'—';
     });
 
     const kw=totW>=1000;
