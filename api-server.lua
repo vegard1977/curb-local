@@ -898,11 +898,13 @@ local function handle_post_wifi_connect(client, body)
   local ssid = req.ssid:gsub('["%c\\]', '')
   local pw   = (req.password or ''):gsub('["%c\\]', '')
   -- Skriv wpa_supplicant.conf direkte (unng??r shell-injection via wpa_passphrase)
+  -- bgscan="" skrur av bakgrunns-scanning -> wpa roamer ikke mellom mesh-APer
+  -- med samme SSID (unngar thrashing ved boot, se kontekst/wifi.md).
   local conf
   if pw ~= '' then
-    conf = 'network={\n    ssid="' .. ssid .. '"\n    psk="' .. pw .. '"\n}\n'
+    conf = 'network={\n    ssid="' .. ssid .. '"\n    psk="' .. pw .. '"\n    bgscan=""\n}\n'
   else
-    conf = 'network={\n    ssid="' .. ssid .. '"\n    key_mgmt=NONE\n}\n'
+    conf = 'network={\n    ssid="' .. ssid .. '"\n    key_mgmt=NONE\n    bgscan=""\n}\n'
   end
   write_file(WPA_CONF, conf)
   -- Drep eventuell eksisterende wpa_supplicant og start p?? nytt
