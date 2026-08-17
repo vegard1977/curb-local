@@ -253,12 +253,15 @@ end
 if connected then queue_discovery() end
 
 -- ── IPC-koe ───────────────────────────────────────────────────────────────────
-local qid = queue.init(queue.LEGACY_KEY)
+-- Les fra STREAMER-koen (1234), ikke LEGACY (5678). Sampleren skriver til begge,
+-- men LEGACY-koen kan bli root-eid (fra en tidligere root-kjoring) -> curb-brukeren
+-- faar EACCES. STREAMER-koen opprettes alltid av sampleren som dens egen bruker.
+local qid = queue.init(queue.STREAMER_KEY)
 if qid == nil then
-  logger:error('LEGACY-koe init feilet')
+  logger:error('STREAMER-koe init feilet')
   os.exit(1)
 end
-logger:info('IPC LEGACY-koe klar (key=%d)', queue.LEGACY_KEY)
+logger:info('IPC STREAMER-koe klar (key=%d)', queue.STREAMER_KEY)
 
 -- ── Skriv latest.json for web-grensesnitt ────────────────────────────────────
 local latest_circuits = {}
@@ -586,16 +589,33 @@ while true do
   if sample then
     local circuit = 0
 
-    for _, group in ipairs(sample.group) do
-      local voltage = group.vrms * cal.volt_scale
+    -- Auto-detekter sample-skjema: enkelte Curb-firmwareversjoner bruker korte
+    -- feltnavn (g/v/c/w/i/p) i stedet for lange (group/vrms/channel/watthr/irms/
+    -- powerFactor). `A or B` faller tilbake paa kortformen naar langformen mangler.
+    for _, group in ipairs(sample.group or sample.g) do
+      -- Spenning: normalt maalt VRMS fra ADE. Enheter med odelagt spenningskanal
+      -- kan sette cal.fixed_voltage (f.eks. 230) -> bruk fast verdi i stedet.
+      local voltage = cal.fixed_voltage or ((group.vrms or group.v) * cal.volt_scale)
 
-      for _, ch in ipairs(group.channel) do
+      for _, ch in ipairs(group.channel or group.c) do
         circuit = circuit + 1
 
+        local current = math.abs(ch.irms or ch.i) * current_scale(circuit)
+        local pf      = math.max(-1.0, math.min(1.0, (ch.powerFactor or ch.p) * cal.pf_scale))
+
+        -- Effekt: normalt fra ADE watthr. Ved fast spenning (odelagt spenningskanal)
+        -- er watthr ubrukelig -> beregn fra fast_spenning * strom * |PF| i stedet.
+        local power
+        if cal.fixed_voltage then
+          power = voltage * current * math.abs(pf)
+        else
+          power = math.abs(ch.watthr or ch.w) * 3600 * cal.watt_scale
+        end
+
         latest_circuits[circuit] = {
-          power        = math.abs(ch.watthr) * 3600 * cal.watt_scale,
-          current      = math.abs(ch.irms) * current_scale(circuit),
-          power_factor = math.max(-1.0, math.min(1.0, ch.powerFactor * cal.pf_scale)),
+          power        = power,
+          current      = current,
+          power_factor = pf,
           voltage      = voltage,
           t            = sample.timestamp,
         }
