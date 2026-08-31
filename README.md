@@ -238,6 +238,24 @@ Connect a known reference measuring device (e.g. Fluke) to a circuit and press *
 — a new scale factor is computed automatically. All 18 CTs are shown with live values.
 Supports 0A calibration (mute a circuit with no load).
 
+#### Firmware measurement units (auto-detected)
+Curb firmware comes in two flavours and `mqtt-streamer.lua` handles both automatically:
+
+- **Raw ADC firmware** — the sampler emits raw ADE7816 counts (e.g. VRMS ≈ millions).
+  These are converted using the `*_scale` factors in `calibration.json`
+  (`volt_scale`, `watt_scale`, `pf_scale`, `circuit_current_scales`).
+- **Pre-converted firmware** — the sampler emits real units already (V ≈ 120/230,
+  A, PF in −1..1). The streamer detects this (VRMS in a plausible mains range, < 1000)
+  and uses the values directly, ignoring the scale factors. No calibration needed.
+
+Detection is per sample-group, based on the raw voltage magnitude, so no configuration
+is required either way.
+
+**Optional `fixed_voltage`** — for a unit with a damaged voltage channel (VRMS reads wrong),
+add `"fixed_voltage": 230` (or `120`) to `/data/calibration.json`. The streamer then uses
+that constant voltage and computes power as `V × I × |PF|` instead of the unreliable
+`watthr` register.
+
 ### Settings
 MQTT broker, username, password, base topic and device name — edit and save directly from the browser.
 Changes take effect after mqtt-streamer restarts (automatic via hm).

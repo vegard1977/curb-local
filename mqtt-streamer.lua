@@ -589,27 +589,49 @@ while true do
   if sample then
     local circuit = 0
 
-    -- Auto-detekter sample-skjema: enkelte Curb-firmwareversjoner bruker korte
-    -- feltnavn (g/v/c/w/i/p) i stedet for lange (group/vrms/channel/watthr/irms/
-    -- powerFactor). `A or B` faller tilbake paa kortformen naar langformen mangler.
+    -- Auto-detekter sample-skjema OG maaleenhet:
+    --  * Feltnavn: enkelte firmwareversjoner bruker korte navn (g/v/c/w/i/p) i
+    --    stedet for lange (group/vrms/channel/watthr/irms/powerFactor). `A or B`.
+    --  * Enhet: noen firmware sender allerede-konverterte verdier (ekte V/A/PF),
+    --    andre sender raa ADC-tall som maa skaleres med cal.*_scale. Raa spenning
+    --    er ~millioner; ekte nettspenning er 50-400 V -> terskel 1000 skiller trygt.
+    --    real_units => bruk verdiene direkte, ellers bruk cal.*_scale.
     for _, group in ipairs(sample.group or sample.g) do
-      -- Spenning: normalt maalt VRMS fra ADE. Enheter med odelagt spenningskanal
-      -- kan sette cal.fixed_voltage (f.eks. 230) -> bruk fast verdi i stedet.
-      local voltage = cal.fixed_voltage or ((group.vrms or group.v) * cal.volt_scale)
+      local rawv       = (group.vrms or group.v) or 0
+      local real_units = rawv > 0 and rawv < 1000
+
+      -- Spenning: fast (odelagt spenningskanal) > allerede-ekte > raa*skala.
+      local voltage
+      if cal.fixed_voltage then
+        voltage = cal.fixed_voltage
+      elseif real_units then
+        voltage = rawv
+      else
+        voltage = rawv * cal.volt_scale
+      end
 
       for _, ch in ipairs(group.channel or group.c) do
         circuit = circuit + 1
 
-        local current = math.abs(ch.irms or ch.i) * current_scale(circuit)
-        local pf      = math.max(-1.0, math.min(1.0, (ch.powerFactor or ch.p) * cal.pf_scale))
+        local rawi = math.abs(ch.irms or ch.i or 0)
+        local rawp = ch.powerFactor or ch.p or 0
+        local raww = math.abs(ch.watthr or ch.w or 0)
 
-        -- Effekt: normalt fra ADE watthr. Ved fast spenning (odelagt spenningskanal)
-        -- er watthr ubrukelig -> beregn fra fast_spenning * strom * |PF| i stedet.
-        local power
+        local current, pf, power
+        if real_units then
+          current = rawi
+          pf      = math.max(-1.0, math.min(1.0, rawp))
+          power   = raww * 3600                        -- watthr (Wh/s) -> W
+        else
+          current = rawi * current_scale(circuit)
+          pf      = math.max(-1.0, math.min(1.0, rawp * cal.pf_scale))
+          power   = raww * 3600 * cal.watt_scale
+        end
+
+        -- Fast spenning (odelagt spenningskanal): watthr ubrukelig ->
+        -- beregn effekt fra fast_spenning * strom * |PF| i stedet.
         if cal.fixed_voltage then
           power = voltage * current * math.abs(pf)
-        else
-          power = math.abs(ch.watthr or ch.w) * 3600 * cal.watt_scale
         end
 
         latest_circuits[circuit] = {
