@@ -613,9 +613,10 @@ while true do
       for _, ch in ipairs(group.channel or group.c) do
         circuit = circuit + 1
 
-        local rawi = math.abs(ch.irms or ch.i or 0)
+        -- Behold fortegn her (retning): i/w er negative ved eksport/produksjon.
+        local rawi = ch.irms or ch.i or 0
         local rawp = ch.powerFactor or ch.p or 0
-        local raww = math.abs(ch.watthr or ch.w or 0)
+        local raww = ch.watthr or ch.w or 0
 
         local current, pf, power
         if real_units then
@@ -628,10 +629,19 @@ while true do
           power   = raww * 3600 * cal.watt_scale
         end
 
-        -- Fast spenning (odelagt spenningskanal): watthr ubrukelig ->
-        -- beregn effekt fra fast_spenning * strom * |PF| i stedet.
+        -- Fast spenning (odelagt spenningskanal): watthr ubrukelig -> beregn fra
+        -- V * |I| * |PF|, men behold retnings-fortegnet fra maalt effekt (w).
         if cal.fixed_voltage then
-          power = voltage * current * math.abs(pf)
+          local dir = (power < 0) and -1 or 1
+          power = dir * voltage * math.abs(current) * math.abs(pf)
+        end
+
+        -- Standard: rapporter magnitude (uavhengig av CT-orientering).
+        -- cal.signed_power = true -> behold fortegn, slik at eksport/solproduksjon
+        -- og batteri-utlading blir NEGATIV effekt (riktig for HA solar/grid-retning).
+        if not cal.signed_power then
+          current = math.abs(current)
+          power   = math.abs(power)
         end
 
         latest_circuits[circuit] = {

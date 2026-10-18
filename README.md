@@ -256,6 +256,13 @@ add `"fixed_voltage": 230` (or `120`) to `/data/calibration.json`. The streamer 
 that constant voltage and computes power as `V × I × |PF|` instead of the unreliable
 `watthr` register.
 
+**Optional `signed_power`** — by default each circuit reports **absolute** power and current,
+so a CT's orientation doesn't matter. If you have circuits that feed power *back* — solar,
+a battery/Powerwall discharging, or a grid CT that can export — add `"signed_power": true`
+to `/data/calibration.json`. Those circuits then report **negative** power/current (the
+measured direction), which lets the Home Assistant Energy dashboard treat them as production
+or return-to-grid instead of consumption. Consuming circuits stay positive.
+
 ### Settings
 MQTT broker, username, password, base topic and device name — edit and save directly from the browser.
 Changes take effect after mqtt-streamer restarts (automatic via hm).
